@@ -48,6 +48,8 @@ export interface AppSettings {
   autoLoadThumbnails: boolean
   thumbnailWidth: number
   thumbnailJpegQuality: number
+  languageCode: string
+  showWelcomeGuide: boolean
 }
 
 export interface WebSettings {

@@ -1,7 +1,9 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- ===== DataGrid row hover: subtle background highlight + elevation ===== -->
+    <!-- ===== Material Design 动画效果 ===== -->
+
+    <!-- DataGrid row hover -->
     <Style Selector="DataGridRow">
         <Setter Property="Transitions">
             <Transitions>
@@ -14,7 +16,7 @@
         <Setter Property="Fill" Value="{DynamicResource RowHoverBackground}" />
     </Style>
 
-    <!-- ===== Metric hover diff: smooth color transition ===== -->
+    <!-- Metric hover diff -->
     <Style Selector="TextBlock.metric-diff">
         <Setter Property="Transitions">
             <Transitions>
@@ -23,26 +25,27 @@
         </Setter>
     </Style>
 
-    <!-- ===== Skeleton shimmer loading animation for thumbnails ===== -->
+    <!-- Skeleton shimmer loading animation -->
     <Style Selector="Border.skeleton-shimmer">
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="4" />
         <Setter Property="MinHeight" Value="40" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
         <Style.Animations>
             <Animation Duration="0:0:1.5" IterationCount="INFINITE" PlaybackDirection="Alternate" Easing="CubicEaseInOut">
                 <KeyFrame Cue="0%">
-                    <Setter Property="Opacity" Value="0.3" />
+                    <Setter Property="Opacity" Value="0.4" />
                 </KeyFrame>
                 <KeyFrame Cue="100%">
-                    <Setter Property="Opacity" Value="0.7" />
+                    <Setter Property="Opacity" Value="0.8" />
                 </KeyFrame>
             </Animation>
         </Style.Animations>
     </Style>
 
-    <!-- ===== Fade-in animation class ===== -->
+    <!-- Fade-in animation -->
     <Style Selector="Border.fade-in">
         <Style.Animations>
-            <Animation Duration="0:0:0.2" Easing="CubicEaseInOut" FillMode="Forward">
+            <Animation Duration="0:0:0.3" Easing="CubicEaseInOut" FillMode="Forward">
                 <KeyFrame Cue="0%">
                     <Setter Property="Opacity" Value="0" />
                 </KeyFrame>
@@ -53,31 +56,27 @@
         </Style.Animations>
     </Style>
 
-    <!-- ===== Scale hover effect (subtle grow on pointer-over) ===== -->
+    <!-- Scale hover -->
     <Style Selector="Border.scale-hover">
-        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
-        <Setter Property="RenderTransform" Value="scale(1)" />
         <Setter Property="Transitions">
             <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseInOut" />
             </Transitions>
         </Setter>
     </Style>
-    <Style Selector="Border.scale-hover:pointerover">
-        <Setter Property="RenderTransform" Value="scale(1.02)" />
-    </Style>
 
-    <!-- ===== Slide-in from bottom ===== -->
+    <!-- Slide-in from bottom -->
     <Style Selector="Border.slide-up">
         <Setter Property="RenderTransformOrigin" Value="0.5,1" />
         <Setter Property="Transitions">
             <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="QuadraticEaseOut" />
-                <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="QuadraticEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="QuadraticEaseOut" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="QuadraticEaseOut" />
             </Transitions>
         </Setter>
         <Style.Animations>
-            <Animation Duration="0:0:0.25" Easing="QuadraticEaseOut" FillMode="Forward">
+            <Animation Duration="0:0:0.3" Easing="QuadraticEaseOut" FillMode="Forward">
                 <KeyFrame Cue="0%">
                     <Setter Property="Opacity" Value="0" />
                     <Setter Property="RenderTransform" Value="translate(0,12)" />
@@ -90,7 +89,7 @@
         </Style.Animations>
     </Style>
 
-    <!-- ===== Expand/collapse transition for group headers ===== -->
+    <!-- Expand/collapse transition -->
     <Style Selector="Border.expand-collapse">
         <Setter Property="Transitions">
             <Transitions>
@@ -100,30 +99,66 @@
         </Setter>
     </Style>
 
-    <!-- ===== Common control transitions ===== -->
-    <Style Selector="Button">
+    <!-- Button press animation -->
+    <Style Selector="Button.press-effect">
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
         <Setter Property="Transitions">
             <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="CubicEaseInOut" />
             </Transitions>
         </Setter>
     </Style>
-
-    <!-- Tactile press feedback: button depresses 1px on click -->
-    <Style Selector="Button:pressed">
-        <Setter Property="RenderTransform">
-            <TranslateTransform Y="1" />
-        </Setter>
+    <Style Selector="Button.press-effect:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.98)" />
     </Style>
 
-    <!-- ===== Border hover elevation transition ===== -->
+    <!-- Material Design ripple container -->
+    <Style Selector="Border.ripple-container">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- Elevation hover -->
     <Style Selector="Border.elevate-hover">
         <Setter Property="Transitions">
             <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseInOut" />
                 <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseInOut" />
             </Transitions>
         </Setter>
+    </Style>
+
+    <!-- Checkbox check animation -->
+    <Style Selector="CheckBox">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Tab transition -->
+    <Style Selector="TabControl">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Progress bar indeterminate animation -->
+    <Style Selector="ProgressBar.indeterminate">
+        <Style.Animations>
+            <Animation Duration="0:0:1" IterationCount="INFINITE" Easing="Linear">
+                <KeyFrame Cue="0%">
+                    <Setter Property="RenderTransform" Value="translate(-50%,0)" />
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="RenderTransform" Value="translate(100%,0)" />
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
     </Style>
 </Styles>

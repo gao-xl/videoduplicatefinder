@@ -44,7 +44,8 @@ namespace VDF.Core {
 		public int SameFolderDepth = 1;
 		public bool UsePHashing;
 		public bool UseExifCreationDate;
-		public string LanguageCode = "en";
+		public string LanguageCode = "zh-Hans";
+		public bool ShowWelcomeGuide = true;
 
 		public FFTools.FFHardwareAccelerationMode HardwareAccelerationMode;
 

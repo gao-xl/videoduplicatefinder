@@ -27,9 +27,50 @@ using VDF.Web.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Load config.json for early configuration (CORS, TLS, base path, port) ──
+// This mirrors the logic in WebConfigService so it can be used before DI is built.
+static string GetEarlyConfigPath() {
+	var explicitPath = Environment.GetEnvironmentVariable("VDF_CONFIG_PATH");
+	if (!string.IsNullOrWhiteSpace(explicitPath)) return explicitPath;
+	return Path.Combine(AppContext.BaseDirectory, "config.json");
+}
+
+string? configPassword = null;
+List<string>? configCorsOrigins = null;
+string? configTlsCert = null;
+string? configTlsKey = null;
+string? configBasePath = null;
+int? configPort = null;
+
+var configPath = GetEarlyConfigPath();
+if (File.Exists(configPath)) {
+	try {
+		var json = File.ReadAllText(configPath);
+		using var doc = System.Text.Json.JsonDocument.Parse(json);
+		if (doc.RootElement.TryGetProperty("web", out var web)) {
+			if (web.TryGetProperty("password", out var pw) && pw.ValueKind == System.Text.Json.JsonValueKind.String)
+				configPassword = pw.GetString();
+			if (web.TryGetProperty("basePath", out var bp) && bp.ValueKind == System.Text.Json.JsonValueKind.String)
+				configBasePath = bp.GetString();
+			if (web.TryGetProperty("tlsCert", out var tc) && tc.ValueKind == System.Text.Json.JsonValueKind.String)
+				configTlsCert = tc.GetString();
+			if (web.TryGetProperty("tlsKey", out var tk) && tk.ValueKind == System.Text.Json.JsonValueKind.String)
+				configTlsKey = tk.GetString();
+			if (web.TryGetProperty("port", out var pt) && pt.ValueKind == System.Text.Json.JsonValueKind.Number)
+				configPort = pt.GetInt32();
+			if (web.TryGetProperty("corsOrigins", out var co) && co.ValueKind == System.Text.Json.JsonValueKind.Array) {
+				configCorsOrigins = [];
+				foreach (var item in co.EnumerateArray())
+					if (item.ValueKind == System.Text.Json.JsonValueKind.String)
+						configCorsOrigins.Add(item.GetString()!);
+			}
+		}
+	}
+	catch { /* ignore parse errors, fall back to env vars */ }
+}
+
 // ── VDF_BASE_PATH: serve the app under a sub-path when behind a reverse proxy ──
-// e.g. VDF_BASE_PATH=/vdf  →  all routes become /vdf/..., /vdf/login, /vdf/health, etc.
-var basePath = Environment.GetEnvironmentVariable("VDF_BASE_PATH")?.Trim('/');
+var basePath = configBasePath?.Trim('/') ?? Environment.GetEnvironmentVariable("VDF_BASE_PATH")?.Trim('/');
 if (!string.IsNullOrEmpty(basePath)) {
 	basePath = "/" + basePath;
 	builder.Configuration["BasePath"] = basePath;
@@ -39,6 +80,9 @@ if (!string.IsNullOrEmpty(basePath)) {
 builder.Services.AddAntiforgery();
 
 builder.Services.AddHttpContextAccessor();
+
+// Register WebConfigService first so AuthService and other services can use it
+builder.Services.AddSingleton<WebConfigService>();
 
 // Create JwtService early so it can be used for both DI and JWT Bearer configuration
 var jwtService = new JwtService(LoggerFactory.Create(b => { }).CreateLogger<JwtService>());
@@ -113,7 +157,10 @@ builder.Services.AddRateLimiter(options => {
 });
 
 // --- CORS ---
-var corsOrigins = Environment.GetEnvironmentVariable("VDF_CORS_ORIGINS");
+// Prefer config.json, fall back to VDF_CORS_ORIGINS env var
+var corsOrigins = configCorsOrigins?.Count > 0
+	? string.Join(",", configCorsOrigins)
+	: Environment.GetEnvironmentVariable("VDF_CORS_ORIGINS");
 if (!string.IsNullOrEmpty(corsOrigins)) {
 	builder.Services.AddCors(options => {
 		options.AddDefaultPolicy(policy => {
@@ -135,16 +182,21 @@ else {
 }
 
 // --- HTTPS / TLS ---
-var tlsCert = Environment.GetEnvironmentVariable("VDF_TLS_CERT");
-var tlsKey = Environment.GetEnvironmentVariable("VDF_TLS_KEY");
+var tlsCert = configTlsCert ?? Environment.GetEnvironmentVariable("VDF_TLS_CERT");
+var tlsKey = configTlsKey ?? Environment.GetEnvironmentVariable("VDF_TLS_KEY");
 if (!string.IsNullOrEmpty(tlsCert) && !string.IsNullOrEmpty(tlsKey)) {
 	builder.WebHost.ConfigureKestrel(options => {
 		options.ConfigureEndpointDefaults(listenOptions => {
 			listenOptions.UseHttps(httpsOptions => {
-				httpsOptions.ServerCertificate = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(tlsCert);
+				httpsOptions.ServerCertificate = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(tlsCert!);
 			});
 		});
 	});
+}
+
+// --- HTTP Port ---
+if (configPort.HasValue && configPort > 0) {
+	builder.WebHost.UseUrls($"http://0.0.0.0:{configPort}");
 }
 
 // --- ForwardedHeaders for reverse proxy support ---
@@ -158,7 +210,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options => {
 var app = builder.Build();
 
 if (string.IsNullOrEmpty(corsOrigins)) {
-	app.Logger.LogWarning("VDF_CORS_ORIGINS is not set. CORS policy is restrictive by default — only same-origin requests are permitted. Set VDF_CORS_ORIGINS to allow specific origins.");
+	app.Logger.LogWarning("CORS policy is restrictive by default — only same-origin requests are permitted. " +
+		"Set 'corsOrigins' in config.json or VDF_CORS_ORIGINS environment variable to allow cross-origin requests.");
 }
 
 // Apply path base before any other middleware so all route matching and link
@@ -449,6 +502,7 @@ app.MapGet("/export/csv", (ScanService scan) => {
 // ── New Minimal API endpoints ──
 
 app.MapScanApi();
+app.MapBrowseApi();
 app.MapResultApi();
 app.MapSettingsApi();
 app.MapThumbnailApi();

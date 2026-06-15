@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="VDF.GUI.Views.MainWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -25,7 +25,7 @@
     MinHeight="450"
     d:DesignHeight="750"
     d:DesignWidth="900"
-    BorderBrush="{actipro:ThemeResource ButtonForegroundBrush}"
+    BorderBrush="{DynamicResource IconForegroundBrush}"
     BorderThickness="1"
     ExtendClientAreaToDecorationsHint="True"
     FontSize="14"
@@ -54,7 +54,7 @@
                     <TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline">
                         <TextBlock.Styles>
                             <Style Selector="TextBlock:pointerover">
-                                <Setter Property="Foreground" Value="{actipro:ThemeResource ControlBackgroundBrushEmphasizedAccent}" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
                             </Style>
                         </TextBlock.Styles>
                     </TextBlock>
@@ -64,7 +64,7 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
     </Window.Styles>
-    <Border BorderBrush="{DynamicResource SystemControlBackgroundChromeMediumBrush}" BorderThickness="2">
+    <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="2">
         <Grid>
             <controls:ExperimentalAcrylicBorder
                 x:Name="ExperimentalAcrylicBorderBackgroundWhite"
@@ -202,7 +202,7 @@
                                                 Margin="4,2,0,0"
                                                 VerticalAlignment="Center"
                                                 Data="M 0 0 L 6 6 L 12 0 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                         </StackPanel>
                                     </MenuItem.Header>
                                     <MenuItem Command="{Binding CleanDatabaseCommand}" ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Tooltip.CleanDatabase]}">
@@ -210,7 +210,7 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <Viewbox Width="16" Height="16">
                                                     <Canvas Width="24" Height="24">
-                                                        <Path Data="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                        <Path Data="M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z" Fill="{DynamicResource IconForegroundBrush}" />
                                                     </Canvas>
                                                 </Viewbox>
                                                 <TextBlock
@@ -284,7 +284,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="16" Height="16">
                                                 <Canvas Width="24" Height="24">
-                                                    <Path Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12C4,13.85 4.63,15.55 5.68,16.91L16.91,5.68C15.55,4.63 13.85,4 12,4M12,20A8,8 0 0,0 20,12C20,10.15 19.37,8.45 18.32,7.09L7.09,18.32C8.45,19.37 10.15,20 12,20Z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12C4,13.85 4.63,15.55 5.68,16.91L16.91,5.68C15.55,4.63 13.85,4 12,4M12,20A8,8 0 0,0 20,12C20,10.15 19.37,8.45 18.32,7.09L7.09,18.32C8.45,19.37 10.15,20 12,20Z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -299,7 +299,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="16" Height="16">
                                                 <Canvas Width="64" Height="64">
-                                                    <Path Data="M32.029,8.345c-13.27,0 -24.029,10.759 -24.029,24.033c0,10.617 6.885,19.624 16.435,22.803c1.202,0.22 1.64,-0.522 1.64,-1.16c0,-0.569 -0.02,-2.081 -0.032,-4.086c-6.685,1.452 -8.095,-3.222 -8.095,-3.222c-1.093,-2.775 -2.669,-3.514 -2.669,-3.514c-2.182,-1.492 0.165,-1.462 0.165,-1.462c2.412,0.171 3.681,2.477 3.681,2.477c2.144,3.672 5.625,2.611 6.994,1.997c0.219,-1.553 0.838,-2.612 1.526,-3.213c-5.336,-0.606 -10.947,-2.669 -10.947,-11.877c0,-2.623 0.937,-4.769 2.474,-6.449c-0.247,-0.608 -1.072,-3.051 0.235,-6.36c0,0 2.018,-0.646 6.609,2.464c1.917,-0.533 3.973,-0.8 6.016,-0.809c2.041,0.009 4.097,0.276 6.017,0.809c4.588,-3.11 6.602,-2.464 6.602,-2.464c1.311,3.309 0.486,5.752 0.239,6.36c1.54,1.68 2.471,3.826 2.471,6.449c0,9.232 -5.62,11.263 -10.974,11.858c0.864,0.742 1.632,2.208 1.632,4.451c0,3.212 -0.029,5.804 -0.029,6.591c0,0.644 0.432,1.392 1.652,1.157c9.542,-3.185 16.421,-12.186 16.421,-22.8c0,-13.274 -10.76,-24.033 -24.034,-24.033" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M32.029,8.345c-13.27,0 -24.029,10.759 -24.029,24.033c0,10.617 6.885,19.624 16.435,22.803c1.202,0.22 1.64,-0.522 1.64,-1.16c0,-0.569 -0.02,-2.081 -0.032,-4.086c-6.685,1.452 -8.095,-3.222 -8.095,-3.222c-1.093,-2.775 -2.669,-3.514 -2.669,-3.514c-2.182,-1.492 0.165,-1.462 0.165,-1.462c2.412,0.171 3.681,2.477 3.681,2.477c2.144,3.672 5.625,2.611 6.994,1.997c0.219,-1.553 0.838,-2.612 1.526,-3.213c-5.336,-0.606 -10.947,-2.669 -10.947,-11.877c0,-2.623 0.937,-4.769 2.474,-6.449c-0.247,-0.608 -1.072,-3.051 0.235,-6.36c0,0 2.018,-0.646 6.609,2.464c1.917,-0.533 3.973,-0.8 6.016,-0.809c2.041,0.009 4.097,0.276 6.017,0.809c4.588,-3.11 6.602,-2.464 6.602,-2.464c1.311,3.309 0.486,5.752 0.239,6.36c1.54,1.68 2.471,3.826 2.471,6.449c0,9.232 -5.62,11.263 -10.974,11.858c0.864,0.742 1.632,2.208 1.632,4.451c0,3.212 -0.029,5.804 -0.029,6.591c0,0.644 0.432,1.392 1.652,1.157c9.542,-3.185 16.421,-12.186 16.421,-22.8c0,-13.274 -10.76,-24.033 -24.034,-24.033" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -324,7 +324,7 @@
                                                 Margin="0,0,4,0"
                                                 VerticalAlignment="Center"
                                                 Data="M14,9.00421 C14.5523,9.00421 15,9.45192 15,10.00418 L15,13.00418 C15,14.10878 14.1046,15.00418 13,15.00418 L3,15.00418 C1.89543,15.00418 1,14.10878 1,13.00418 L1,10.00418 C1,9.45192 1.44772,9.00421 2,9.00421 C2.55228,9.00421 3,9.45192 3,10.00418 L3,13.00418 L13,13.00418 L13,10.00418 C13,9.45192 13.4477,9.00421 14,9.00421 Z M8,1.59 L11.7071,5.2971 C12.0976,5.68763 12.0976,6.32079 11.7071,6.71132 C11.3166,7.10184 10.6834,7.10184 10.2929,6.71132 L9,5.41842 L9,10.00418 C9,10.55648 8.55228,11.00418 8,11.00418 C7.44772,11.00418 7,10.55648 7,10.00418 L7,5.41842 L5.70711,6.71132 C5.31658,7.10184 4.68342,7.10184 4.29289,6.71132 C3.90237,6.32079 3.90237,5.68763 4.29289,5.2971 L8,1.59 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                             <TextBlock
                                                 Margin="5,0,0,0"
                                                 VerticalAlignment="Center"
@@ -333,7 +333,7 @@
                                                 Margin="4,2,0,0"
                                                 VerticalAlignment="Center"
                                                 Data="M 0 0 L 6 6 L 12 0 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                         </StackPanel>
                                     </MenuItem.Header>
                                     <MenuItem Command="{Binding ExportScanResultsCommand}">
@@ -378,7 +378,7 @@
                                                 Margin="0,0,4,0"
                                                 VerticalAlignment="Center"
                                                 Data="M14,9 C14.5523,9 15,9.44772 15,10 L15,13 C15,14.1046 14.1046,15 13,15 L3,15 C1.89543,15 1,14.1046 1,13 L1,10 C1,9.44772 1.44772,9 2,9 C2.55228,9 3,9.44771 3,10 L3,13 L13,13 L13,10 C13,9.44771 13.4477,9 14,9 Z M8,1 C8.55228,1 9,1.44772 9,2 L9,6.58579 L10.2929,5.29289 C10.6834,4.90237 11.3166,4.90237 11.7071,5.29289 C12.0976,5.68342 12.0976,6.31658 11.7071,6.70711 L8,10.4142 L4.29289,6.70711 C3.90237,6.31658 3.90237,5.68342 4.29289,5.29289 C4.68342,4.90237 5.31658,4.90237 5.70711,5.29289 L7,6.58579 L7,2 C7,1.44772 7.44772,1 8,1 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                             <TextBlock
                                                 Margin="5,0,0,0"
                                                 VerticalAlignment="Center"
@@ -387,7 +387,7 @@
                                                 Margin="4,2,0,0"
                                                 VerticalAlignment="Center"
                                                 Data="M 0 0 L 6 6 L 12 0 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                         </StackPanel>
                                     </MenuItem.Header>
                                     <MenuItem Command="{Binding ImportScanResultsFromFileCommand}">
@@ -405,7 +405,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="16" Height="16">
                                                 <Canvas Width="24" Height="24">
-                                                    <Path Data="M2,4C2,2.89 2.9,2 4,2H7V4H4V7H2V4M22,4V7H20V4H17V2H20A2,2 0 0,1 22,4M20,20V17H22V20C22,21.11 21.1,22 20,22H17V20H20M2,20V17H4V20H7V22H4A2,2 0 0,1 2,20M10,2H14V4H10V2M10,20H14V22H10V20M20,10H22V14H20V10M2,10H4V14H2V10Z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M2,4C2,2.89 2.9,2 4,2H7V4H4V7H2V4M22,4V7H20V4H17V2H20A2,2 0 0,1 22,4M20,20V17H22V20C22,21.11 21.1,22 20,22H17V20H20M2,20V17H4V20H7V22H4A2,2 0 0,1 2,20M10,2H14V4H10V2M10,20H14V22H10V20M20,10H22V14H20V10M2,10H4V14H2V10Z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -416,7 +416,7 @@
                                                 Margin="4,2,0,0"
                                                 VerticalAlignment="Center"
                                                 Data="M 0 0 L 6 6 L 12 0 Z"
-                                                Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                Fill="{DynamicResource IconForegroundBrush}" />
                                         </StackPanel>
                                     </MenuItem.Header>
                                         <MenuItem Command="{Binding CheckWhenIdenticalCommand}">
@@ -498,7 +498,7 @@
                                                     Margin="4,2,0,0"
                                                     VerticalAlignment="Center"
                                                     Data="M 0 0 L 6 6 L 12 0 Z"
-                                                    Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    Fill="{DynamicResource IconForegroundBrush}" />
                                             </StackPanel>
                                         </MenuItem.Header>
                                         <MenuItem Command="{Binding DeleteCheckedItemsCommand}">
@@ -542,7 +542,7 @@
                                                     Focusable="False">
                                                     <Path
                                                         Data="M10,13V11H18V13H10M10,19V17H14V19H10M10,7V5H22V7H10M6,17H8.5L5,20.5L1.5,17H4V7H1.5L5,3.5L8.5,7H6V17Z"
-                                                        Fill="{actipro:ThemeResource ButtonForegroundBrush}"
+                                                        Fill="{DynamicResource IconForegroundBrush}"
                                                         Focusable="False" />
                                                 </Canvas>
                                             </Viewbox>
@@ -654,12 +654,12 @@
                                             <TextBlock
                                                 FontSize="11"
                                                 Opacity="0.8"
-                                                Foreground="{actipro:ThemeResource ControlForegroundBrushSoftWarning}"
+                                                Foreground="{DynamicResource WarningTextBrush}"
                                                 Text="⚠ " />
                                             <TextBlock
                                                 FontSize="11"
                                                 Opacity="0.8"
-                                                Foreground="{actipro:ThemeResource ControlForegroundBrushSoftWarning}"
+                                                Foreground="{DynamicResource WarningTextBrush}"
                                                 Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Filter.Note]}" />
                                         </StackPanel>
                                     </WrapPanel>
@@ -1001,7 +1001,7 @@
                                                         <StackPanel Orientation="Horizontal">
                                                             <Viewbox Width="16" Height="16">
                                                                 <Canvas Width="24" Height="24">
-                                                                    <Path Data="M2,4C2,2.89 2.9,2 4,2H7V4H4V7H2V4M22,4V7H20V4H17V2H20A2,2 0 0,1 22,4M20,20V17H22V20C22,21.11 21.1,22 20,22H17V20H20M2,20V17H4V20H7V22H4A2,2 0 0,1 2,20M10,2H14V4H10V2M10,20H14V22H10V20M20,10H22V14H20V10M2,10H4V14H2V10Z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                                    <Path Data="M2,4C2,2.89 2.9,2 4,2H7V4H4V7H2V4M22,4V7H20V4H17V2H20A2,2 0 0,1 22,4M20,20V17H22V20C22,21.11 21.1,22 20,22H17V20H20M2,20V17H4V20H7V22H4A2,2 0 0,1 2,20M10,2H14V4H10V2M10,20H14V22H10V20M20,10H22V14H20V10M2,10H4V14H2V10Z" Fill="{DynamicResource IconForegroundBrush}" />
                                                                 </Canvas>
                                                             </Viewbox>
                                                             <TextBlock
@@ -1142,7 +1142,7 @@
                                                         <StackPanel Orientation="Horizontal">
                                                             <Viewbox Width="16" Height="16">
                                                                 <Canvas Width="24" Height="24">
-                                                                    <Path Data="M23 15H11.707l2.646 2.646-.707.707L9.793 14.5l3.854-3.854.707.707L11.707 14H23zm-13-5H6v1h4zm-4 5h2v-1H6zM3 4h3V3h3a2 2 0 0 1 4 0h3v1h3v9h-1V5h-2v2H6V5H4v16h14v-5h1v6H3zm4 2h8V4h-3V2.615A.615.615 0 0 0 11.386 2h-.771a.615.615 0 0 0-.615.615V4H7zM6 19h4v-1H6z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                                    <Path Data="M23 15H11.707l2.646 2.646-.707.707L9.793 14.5l3.854-3.854.707.707L11.707 14H23zm-13-5H6v1h4zm-4 5h2v-1H6zM3 4h3V3h3a2 2 0 0 1 4 0h3v1h3v9h-1V5h-2v2H6V5H4v16h14v-5h1v6H3zm4 2h8V4h-3V2.615A.615.615 0 0 0 11.386 2h-.771a.615.615 0 0 0-.615.615V4H7zM6 19h4v-1H6z" Fill="{DynamicResource IconForegroundBrush}" />
                                                                 </Canvas>
                                                             </Viewbox>
                                                             <TextBlock
@@ -1335,7 +1335,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="24" Height="24">
-                                                    <Path Data="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm2 16H5V5h11.17L19 7.83V19zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM6 6h9v4H6z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm2 16H5V5h11.17L19 7.83V19zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM6 6h9v4H6z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -1350,7 +1350,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="16" Height="16">
-                                                    <Path Data="M11.04 1.33L12.71 3l.29.71v.33h-.5l-.5.5v-.83l-1.67-1.67H10v4H4v-4H2v10h3l-.5 1H2l-1-1v-10l1-1h8.33l.71.29zM7 5h2V2H7v3zm6.5 0L15 6.5l-.02.69-5.5 5.5-.13.12-.37.37-.1.09-3 1.5-.67-.67 1.5-3 .09-.1.37-.37.12-.13 5.5-5.5h.71zm-6.22 7.24l-.52 1 1.04-.48-.52-.52zm.69-1.03l.79.79 5.15-5.15-.79-.79-5.15 5.15z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M11.04 1.33L12.71 3l.29.71v.33h-.5l-.5.5v-.83l-1.67-1.67H10v4H4v-4H2v10h3l-.5 1H2l-1-1v-10l1-1h8.33l.71.29zM7 5h2V2H7v3zm6.5 0L15 6.5l-.02.69-5.5 5.5-.13.12-.37.37-.1.09-3 1.5-.67-.67 1.5-3 .09-.1.37-.37.12-.13 5.5-5.5h.71zm-6.22 7.24l-.52 1 1.04-.48-.52-.52zm.69-1.03l.79.79 5.15-5.15-.79-.79-5.15 5.15z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -1365,7 +1365,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="16" Height="16">
-                                                    <Path Data="M1.5 14h11l.48-.37 2.63-7-.48-.63H14V3.5l-.5-.5H7.71l-.86-.85L6.5 2h-5l-.5.5v11l.5.5zM2 3h4.29l.86.85.35.15H13v2H8.5l-.35.15-.86.85H3.5l-.47.34-1 3.08L2 3zm10.13 10H2.19l1.67-5H7.5l.35-.15.86-.85h5.79l-2.37 6z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M1.5 14h11l.48-.37 2.63-7-.48-.63H14V3.5l-.5-.5H7.71l-.86-.85L6.5 2h-5l-.5.5v11l.5.5zM2 3h4.29l.86.85.35.15H13v2H8.5l-.35.15-.86.85H3.5l-.47.34-1 3.08L2 3zm10.13 10H2.19l1.67-5H7.5l.35-.15.86-.85h5.79l-2.37 6z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -1396,7 +1396,7 @@
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="16,12,16,16" Spacing="12">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                                <TextBlock Foreground="{DynamicResource WarningBrush}"
                                                            Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.MiscWikiHint]}" />
                                                 <Button Classes="hyperlink" Command="{Binding OpenWikiLinkCommand}"
                                                         Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.MiscWikiHyperlink]}" />
@@ -1544,7 +1544,7 @@
                                                               IsThreeState="False"
                                                               ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.EnablePartialClipDetectionTooltip]}" />
                                                     <TextBlock Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.PartialClipDetectionWarning]}"
-                                                               Foreground="{actipro:ThemeResource ControlForegroundBrushSoftWarning}"
+                                                               Foreground="{DynamicResource WarningTextBrush}"
                                                                FontSize="11" TextWrapping="Wrap"
                                                                IsVisible="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=EnablePartialClipDetection}" />
                                                     <Grid ColumnDefinitions="Auto,8,80,16,Auto,8,80"
@@ -1644,9 +1644,9 @@
                                                      DragDrop.AllowDrop="True"
                                                      ItemsSource="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=Includes}" />
                                             <StackPanel Grid.Row="2">
-                                                <TextBlock Margin="5" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                                <TextBlock Margin="5" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                            Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.DragDropHint]}" />
-                                                <TextBlock Margin="5" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                                <TextBlock Margin="5" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                            Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.WildcardNote]}" />
                                             </StackPanel>
                                         </Grid>
@@ -1714,9 +1714,9 @@
                                             <ListBox Name="ListboxBlacklist" Grid.Row="1" BorderThickness="1"
                                                      DragDrop.AllowDrop="True"
                                                      ItemsSource="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=Blacklists}" />
-                                            <TextBlock Grid.Row="2" Margin="5" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                            <TextBlock Grid.Row="2" Margin="5" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.DragDropHint]}" />
-                                            <TextBlock Grid.Row="3" Margin="5" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                            <TextBlock Grid.Row="3" Margin="5" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.WildcardNote]}" />
                                         </Grid>
                                     </Grid>
@@ -1730,7 +1730,7 @@
                                     </TabItem.Header>
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="16,12,16,16" Spacing="12">
-                                            <TextBlock TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushEmphasizedDanger}"
+                                            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource DangerBrush}"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.FilesNote]}" />
                                             <!-- File Size -->
                                             <Border Classes="settings-panel">
@@ -1791,7 +1791,7 @@
                                                     <ListBox x:Name="ListboxFilePathContainsText" Grid.Row="2" MinHeight="70" BorderThickness="1"
                                                              IsEnabled="{Binding #CheckboxFilterByFilePathContains.IsChecked}"
                                                              ItemsSource="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=FilePathContainsTexts}" />
-                                                    <TextBlock Grid.Row="3" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                                    <TextBlock Grid.Row="3" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                                Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.WildcardNote]}" />
                                                 </Grid>
                                             </Border>
@@ -1833,7 +1833,7 @@
                                                     <ListBox x:Name="ListboxFilePathNotContainsText" Grid.Row="2" MinHeight="70" BorderThickness="1"
                                                              IsEnabled="{Binding #CheckboxFilterByFilePathNotContains.IsChecked}"
                                                              ItemsSource="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=FilePathNotContainsTexts}" />
-                                                    <TextBlock Grid.Row="3" TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+                                                    <TextBlock Grid.Row="3" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}"
                                                                Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.WildcardNote]}" />
                                                 </Grid>
                                             </Border>
@@ -2102,7 +2102,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="1024" Height="1024">
-                                                    <Path Data="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390z m468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390z m468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -2117,7 +2117,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="16" Height="16">
-                                                    <Path Data="M11.04 1.33L12.71 3l.29.71v.33h-.5l-.5.5v-.83l-1.67-1.67H10v4H4v-4H2v10h3l-.5 1H2l-1-1v-10l1-1h8.33l.71.29zM7 5h2V2H7v3zm6.5 0L15 6.5l-.02.69-5.5 5.5-.13.12-.37.37-.1.09-3 1.5-.67-.67 1.5-3 .09-.1.37-.37.12-.13 5.5-5.5h.71zm-6.22 7.24l-.52 1 1.04-.48-.52-.52zm.69-1.03l.79.79 5.15-5.15-.79-.79-5.15 5.15z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M11.04 1.33L12.71 3l.29.71v.33h-.5l-.5.5v-.83l-1.67-1.67H10v4H4v-4H2v10h3l-.5 1H2l-1-1v-10l1-1h8.33l.71.29zM7 5h2V2H7v3zm6.5 0L15 6.5l-.02.69-5.5 5.5-.13.12-.37.37-.1.09-3 1.5-.67-.67 1.5-3 .09-.1.37-.37.12-.13 5.5-5.5h.71zm-6.22 7.24l-.52 1 1.04-.48-.52-.52zm.69-1.03l.79.79 5.15-5.15-.79-.79-5.15 5.15z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock
@@ -2133,7 +2133,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <Viewbox Width="20" Height="20">
                                                 <Canvas Width="24" Height="24">
-                                                    <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Fill="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                                    <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Fill="{DynamicResource IconForegroundBrush}" />
                                                 </Canvas>
                                             </Viewbox>
                                             <TextBlock

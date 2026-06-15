@@ -650,7 +650,7 @@ namespace VDF.GUI.Data {
 			if (!string.IsNullOrWhiteSpace(culture.TwoLetterISOLanguageName))
 				return culture.TwoLetterISOLanguageName;
 
-			return "en";
+			return "zh-Hans";
 		}
 	}
 }

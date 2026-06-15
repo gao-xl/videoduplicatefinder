@@ -1,89 +1,111 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- ===== Primary button style ===== -->
+    <!-- ===== macOS 极简风格按钮 ===== -->
+
+    <!-- ===== Primary button - macOS 蓝色按钮 ===== -->
     <Style Selector="Button.btn-primary">
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Background" Value="{DynamicResource ButtonPrimaryBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource ButtonPrimaryForeground}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Transitions">
-            <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
-            </Transitions>
-        </Setter>
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="16 8" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="Button.btn-primary:pointerover">
-        <Setter Property="Background" Value="{DynamicResource AccentBrushHover}" />
+        <Setter Property="Background" Value="{DynamicResource ButtonPrimaryHoverBackground}" />
     </Style>
     <Style Selector="Button.btn-primary:pressed">
-        <Setter Property="RenderTransform" Value="scale(0.97)" />
+        <Setter Property="Background" Value="{DynamicResource ButtonPrimaryPressedBackground}" />
     </Style>
 
-    <!-- ===== Danger button style ===== -->
+    <!-- ===== Danger button - macOS 红色按钮 ===== -->
     <Style Selector="Button.btn-danger">
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Background" Value="{DynamicResource ButtonDangerBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource ButtonDangerForeground}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Transitions">
-            <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
-            </Transitions>
-        </Setter>
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="16 8" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="Button.btn-danger:pointerover">
-        <Setter Property="Background" Value="#EF4444" />
+        <Setter Property="Background" Value="{DynamicResource ButtonDangerHoverBackground}" />
     </Style>
     <Style Selector="Button.btn-danger:pressed">
-        <Setter Property="RenderTransform" Value="scale(0.97)" />
+        <Setter Property="Background" Value="{DynamicResource ButtonDangerPressedBackground}" />
     </Style>
 
-    <!-- ===== Ghost/Outline button variant ===== -->
+    <!-- ===== Ghost/Outline button - macOS 边框按钮 ===== -->
     <Style Selector="Button.btn-ghost">
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource ButtonGhostForegroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ButtonGhostBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="16,8" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Transitions">
-            <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseInOut" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
-            </Transitions>
-        </Setter>
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="16 8" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="Button.btn-ghost:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ButtonGhostHoverBackground}" />
     </Style>
     <Style Selector="Button.btn-ghost:pressed">
-        <Setter Property="RenderTransform" Value="scale(0.97)" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
     </Style>
 
-    <!-- ===== Standard button modernization ===== -->
-    <!-- Tactile press feedback: button depresses 1px on click -->
-    <Style Selector="Button:pressed">
-        <Setter Property="RenderTransform">
-            <TranslateTransform Y="1" />
-        </Setter>
+    <!-- ===== Hyperlink button - macOS 链接按钮 ===== -->
+    <Style Selector="Button.hyperlink">
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Regular" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4 2" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <Style Selector="Button.hyperlink:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryHoverBrush}" />
+    </Style>
+
+    <!-- ===== Icon button - macOS 图标按钮 ===== -->
+    <Style Selector="Button.icon-btn">
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.icon-btn:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
+    </Style>
+    <Style Selector="Button.icon-btn:pressed">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+    </Style>
+
+    <!-- ===== 默认按钮 - macOS 简洁风格 ===== -->
     <Style Selector="Button">
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Transitions">
-            <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
-                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
-            </Transitions>
-        </Setter>
+        <Setter Property="FontFamily" Value="{DynamicResource SystemFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12 6" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
 </Styles>

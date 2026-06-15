@@ -34,7 +34,7 @@ namespace VDF.Core {
 		}
 
 		void EnsureLanguage(string? languageCode) {
-			var normalized = string.IsNullOrWhiteSpace(languageCode) ? "en" : languageCode.Trim();
+			var normalized = string.IsNullOrWhiteSpace(languageCode) ? "zh-Hans" : languageCode.Trim();
 			lock (gate) {
 				if (normalized == currentLanguage && translations.Count > 0)
 					return;

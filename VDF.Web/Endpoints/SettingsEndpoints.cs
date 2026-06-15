@@ -10,7 +10,7 @@ static class SettingsEndpoints {
 		group.RequireAuthorization();
 
 		// GET /api/settings — get current settings
-		group.MapGet("/", (ScanService scan) => {
+		group.MapGet("/", (ScanService scan, WebSettingsService settingsService) => {
 			var s = scan.Settings;
 			return Results.Ok(new {
 				IncludeList = s.IncludeList.ToList(),
@@ -57,6 +57,12 @@ static class SettingsEndpoints {
 				PartialClipSimilarityThreshold = s.PartialClipSimilarityThreshold,
 				PartialClipRequireVisualMatch = s.PartialClipRequireVisualMatch,
 				PartialClipVisualThreshold = s.PartialClipVisualThreshold,
+				// WebUI-only settings
+				AutoLoadThumbnails = settingsService.AutoLoadThumbnails,
+				ThumbnailWidth = settingsService.ThumbnailWidth,
+				ThumbnailJpegQuality = settingsService.ThumbnailJpegQuality,
+				LanguageCode = settingsService.LanguageCode,
+				ShowWelcomeGuide = s.ShowWelcomeGuide,
 			});
 		});
 
@@ -107,10 +113,12 @@ static class SettingsEndpoints {
 			s.PartialClipSimilarityThreshold = dto.PartialClipSimilarityThreshold;
 			s.PartialClipRequireVisualMatch = dto.PartialClipRequireVisualMatch;
 			s.PartialClipVisualThreshold = dto.PartialClipVisualThreshold;
+			s.ShowWelcomeGuide = dto.ShowWelcomeGuide;
 			// WebUI-only settings
 			settingsService.AutoLoadThumbnails = dto.AutoLoadThumbnails;
 			settingsService.ThumbnailWidth = Math.Clamp(dto.ThumbnailWidth, 48, 960);
 			settingsService.ThumbnailJpegQuality = Math.Clamp(dto.ThumbnailJpegQuality, 10, 95);
+			settingsService.LanguageCode = dto.LanguageCode;
 			return Results.Ok(new { updated = true });
 		});
 

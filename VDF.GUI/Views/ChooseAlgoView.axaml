@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 		xmlns:Settings="clr-namespace:VDF.GUI.Data;assembly=VDF.GUI"
@@ -61,7 +61,7 @@
 					<StackPanel Spacing="8">
 						<TextBlock Classes="section-title" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.FoldersTitle]}" />
 						<TextBlock
-						Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+						Foreground="{DynamicResource WarningBrush}"
 						Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.FoldersHint]}"
 						TextWrapping="Wrap" />
 						<Grid RowDefinitions="Auto,*,Auto" RowSpacing="6" ColumnSpacing="8">
@@ -78,7 +78,7 @@
 							<TextBlock
 							Grid.Row="2"
 							Margin="4,6,0,0"
-							Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
+							Foreground="{DynamicResource WarningBrush}"
 							Text="{Binding Source={x:Static app:App.Lang}, Path=[MainWindow.Settings.DragDropHint]}" />
 						</Grid>
 					</StackPanel>

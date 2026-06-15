@@ -1,0 +1,8 @@
+{
+  "web": {
+    "password": "admin123",
+    "authEnabled": true,
+    "port": 5000,
+    "corsOrigins": []
+  }
+}

@@ -1,195 +1,225 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:actipro="http://schemas.actiprosoftware.com/avaloniaui">
-
-    <!-- Modern color tokens for refined, contemporary UI styling -->
-    <!-- Dark theme is the default, consistent with the Web UI -->
-    <!-- Light theme overrides are applied via RequestedThemeVariant selector -->
-
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Styles.Resources>
-        <!-- ===== Accent Colors ===== -->
-        <Color x:Key="AccentBlue">#6C5CE7</Color>
-        <Color x:Key="AccentPurple">#A855F7</Color>
-        <Color x:Key="AccentGradientStart">#6C5CE7</Color>
-        <Color x:Key="AccentGradientEnd">#A855F7</Color>
+        <!-- ===== macOS 极简现代风格 - 单色调配色 ===== -->
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- ===== 亮色主题 (macOS Light) ===== -->
+                <ResourceDictionary x:Key="Light">
+                    <!-- 主色调 - 单一蓝色强调 -->
+                    <SolidColorBrush x:Key="PrimaryBrush">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryHoverBrush">#0066CC</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryLightBrush">#E5F1FF</SolidColorBrush>
+                    
+                    <!-- 强调色 - 仅用于特殊标记 -->
+                    <SolidColorBrush x:Key="AccentBrush">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentLightBrush">#FFE5E5</SolidColorBrush>
+                    
+                    <!-- 状态色 -->
+                    <SolidColorBrush x:Key="SuccessBrush">#34C759</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarningBrush">#FF9500</SolidColorBrush>
+                    <SolidColorBrush x:Key="ErrorBrush">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerBrush">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="InfoBrush">#5AC8FA</SolidColorBrush>
+                    
+                    <!-- 背景色层 - 纯净灰白 -->
+                    <SolidColorBrush x:Key="SurfacePrimaryBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceSecondaryBrush">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceTertiaryBrush">#E8E8ED</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceElevatedBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceAltBrush">#F0F0F5</SolidColorBrush>
+                    
+                    <!-- 边框色 - 极细边框 -->
+                    <SolidColorBrush x:Key="BorderSubtleBrush">#E5E5EA</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderDefaultBrush">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderStrongBrush">#C7C7CC</SolidColorBrush>
+                    
+                    <!-- 文字颜色 - 清晰层次 -->
+                    <SolidColorBrush x:Key="TextPrimaryBrush">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextSecondaryBrush">#6E6E73</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextTertiaryBrush">#AEAEB2</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextDisabledBrush">#C7C7CC</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextInverseBrush">#FFFFFF</SolidColorBrush>
+                    
+                    <!-- 行背景色 -->
+                    <SolidColorBrush x:Key="RowHoverBrush">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="RowSelectedBrush">#E5F1FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="RowAltBrush">#FAFAFA</SolidColorBrush>
+                    
+                    <!-- 按钮颜色 -->
+                    <SolidColorBrush x:Key="ButtonPrimaryBackground">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryHoverBackground">#0066CC</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryPressedBackground">#0055AA</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerBackground">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerHoverBackground">#E6332A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerPressedBackground">#CC2D26</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostForegroundBrush">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostBorderBrush">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostHoverBackground">#F5F5F7</SolidColorBrush>
+                    
+                    <!-- 卡片颜色 -->
+                    <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorderBrush">#E5E5EA</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardHoverBorderBrush">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardSelectedBorderBrush">#007AFF</SolidColorBrush>
+                    
+                    <!-- 徽章颜色 -->
+                    <SolidColorBrush x:Key="BadgeHighBackground">#E5F9E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeHighForeground">#34C759</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeMediumBackground">#E5F1FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeMediumForeground">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeLowBackground">#FFF5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeLowForeground">#FF9500</SolidColorBrush>
+                    <SolidColorBrush x:Key="BestBadgeBackground">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BestBadgeForeground">#FFFFFF</SolidColorBrush>
+                    
+                    <!-- 分组标题 -->
+                    <SolidColorBrush x:Key="GroupHeaderBackgroundBrush">#F5F5F7</SolidColorBrush>
+                    
+                    <!-- 骨架屏 shimmer -->
+                    <SolidColorBrush x:Key="SkeletonShimmerBrush">#15E5E5EA</SolidColorBrush>
+                    
+                    <!-- 图标色 -->
+                    <SolidColorBrush x:Key="IconForegroundBrush">#6E6E73</SolidColorBrush>
+                    <SolidColorBrush x:Key="IconForegroundSubtleBrush">#AEAEB2</SolidColorBrush>
+                    
+                    <!-- 警告/危险文字色 -->
+                    <SolidColorBrush x:Key="WarningTextBrush">#FF9500</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerTextBrush">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="SuccessTextBrush">#34C759</SolidColorBrush>
+                    
+                    <!-- 兼容资源名 -->
+                    <SolidColorBrush x:Key="ButtonForegroundBrush">#6E6E73</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container1BackgroundBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container1BorderBrush">#E5E5EA</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container2BackgroundBrush">#F5F5F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container2BorderBrush">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushEmphasizedAccent">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushSolidAccent">#007AFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushSolidWarning">#FF9500</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushEmphasizedDanger">#FF3B30</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlForegroundBrushSoftWarning">#FF9500</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush">#D1D1D6</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlHighlightBaseLowBrush">#E5E5EA</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlForegroundBaseHighBrush">#1D1D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlBackgroundChromeBlackLowBrush">#F5F5F7</SolidColorBrush>
+                </ResourceDictionary>
 
-        <!-- ===== Surface & Background Colors (Dark) ===== -->
-        <Color x:Key="SurfacePrimary">#1A1B2E</Color>
-        <Color x:Key="SurfaceSecondary">#232438</Color>
-        <Color x:Key="SurfaceTertiary">#2D2E45</Color>
-        <Color x:Key="SurfaceElevated">#353650</Color>
+                <!-- ===== 暗色主题 (macOS Dark) ===== -->
+                <ResourceDictionary x:Key="Dark">
+                    <!-- 主色调 -->
+                    <SolidColorBrush x:Key="PrimaryBrush">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryHoverBrush">#409CFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryLightBrush">#1C3A5F</SolidColorBrush>
+                    
+                    <!-- 强调色 -->
+                    <SolidColorBrush x:Key="AccentBrush">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="AccentLightBrush">#3D2A2A</SolidColorBrush>
+                    
+                    <!-- 状态色 -->
+                    <SolidColorBrush x:Key="SuccessBrush">#32D74B</SolidColorBrush>
+                    <SolidColorBrush x:Key="WarningBrush">#FFD60A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ErrorBrush">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerBrush">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="InfoBrush">#64D2FF</SolidColorBrush>
+                    
+                    <!-- 背景色层 - 深灰黑 -->
+                    <SolidColorBrush x:Key="SurfacePrimaryBrush">#1C1C1E</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceSecondaryBrush">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceTertiaryBrush">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceElevatedBrush">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="SurfaceAltBrush">#252528</SolidColorBrush>
+                    
+                    <!-- 边框色 -->
+                    <SolidColorBrush x:Key="BorderSubtleBrush">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderDefaultBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderStrongBrush">#636366</SolidColorBrush>
+                    
+                    <!-- 文字颜色 -->
+                    <SolidColorBrush x:Key="TextPrimaryBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextSecondaryBrush">#AEAEB2</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextTertiaryBrush">#8E8E93</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextDisabledBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextInverseBrush">#1C1C1E</SolidColorBrush>
+                    
+                    <!-- 行背景色 -->
+                    <SolidColorBrush x:Key="RowHoverBrush">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="RowSelectedBrush">#1C3A5F</SolidColorBrush>
+                    <SolidColorBrush x:Key="RowAltBrush">#252528</SolidColorBrush>
+                    
+                    <!-- 按钮颜色 -->
+                    <SolidColorBrush x:Key="ButtonPrimaryBackground">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryHoverBackground">#409CFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonPrimaryPressedBackground">#0070E0</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerBackground">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerForeground">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerHoverBackground">#FF6961</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonDangerPressedBackground">#E63935</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostForegroundBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostBorderBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ButtonGhostHoverBackground">#3A3A3C</SolidColorBrush>
+                    
+                    <!-- 卡片颜色 -->
+                    <SolidColorBrush x:Key="CardBackgroundBrush">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorderBrush">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardHoverBorderBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardSelectedBorderBrush">#0A84FF</SolidColorBrush>
+                    
+                    <!-- 徽章颜色 -->
+                    <SolidColorBrush x:Key="BadgeHighBackground">#1A3D1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeHighForeground">#32D74B</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeMediumBackground">#1C3A5F</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeMediumForeground">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeLowBackground">#3D2A1A</SolidColorBrush>
+                    <SolidColorBrush x:Key="BadgeLowForeground">#FFD60A</SolidColorBrush>
+                    <SolidColorBrush x:Key="BestBadgeBackground">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="BestBadgeForeground">#FFFFFF</SolidColorBrush>
+                    
+                    <!-- 分组标题 -->
+                    <SolidColorBrush x:Key="GroupHeaderBackgroundBrush">#2C2C2E</SolidColorBrush>
+                    
+                    <!-- 骨架屏 shimmer -->
+                    <SolidColorBrush x:Key="SkeletonShimmerBrush">#153A3A3C</SolidColorBrush>
+                    
+                    <!-- 图标色 -->
+                    <SolidColorBrush x:Key="IconForegroundBrush">#AEAEB2</SolidColorBrush>
+                    <SolidColorBrush x:Key="IconForegroundSubtleBrush">#8E8E93</SolidColorBrush>
+                    
+                    <!-- 警告/危险文字色 -->
+                    <SolidColorBrush x:Key="WarningTextBrush">#FFD60A</SolidColorBrush>
+                    <SolidColorBrush x:Key="DangerTextBrush">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="SuccessTextBrush">#32D74B</SolidColorBrush>
+                    
+                    <!-- 兼容资源名 -->
+                    <SolidColorBrush x:Key="ButtonForegroundBrush">#AEAEB2</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container1BackgroundBrush">#1C1C1E</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container1BorderBrush">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container2BackgroundBrush">#2C2C2E</SolidColorBrush>
+                    <SolidColorBrush x:Key="Container2BorderBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushEmphasizedAccent">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushSolidAccent">#0A84FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushSolidWarning">#FFD60A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlBackgroundBrushEmphasizedDanger">#FF453A</SolidColorBrush>
+                    <SolidColorBrush x:Key="ControlForegroundBrushSoftWarning">#FFD60A</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush">#48484A</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlHighlightBaseLowBrush">#3A3A3C</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlForegroundBaseHighBrush">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="SystemControlBackgroundChromeBlackLowBrush">#3A3A3C</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
-        <!-- ===== Text Colors (Dark) ===== -->
-        <Color x:Key="TextPrimary">#E8E9F3</Color>
-        <Color x:Key="TextSecondary">#9CA0B8</Color>
-        <Color x:Key="TextTertiary">#6B6F87</Color>
-
-        <!-- ===== Border Colors (Dark) ===== -->
-        <Color x:Key="BorderSubtle">#2D2E45</Color>
-        <Color x:Key="BorderDefault">#3D3E55</Color>
-        <Color x:Key="BorderStrong">#4D4E65</Color>
-
-        <!-- ===== Shadow Colors ===== -->
-        <Color x:Key="ShadowLight">#000000</Color>
-        <Color x:Key="ShadowMedium">#000000</Color>
-
-        <!-- ===== Semantic Brushes (Dark default) ===== -->
-
-        <!-- Accent brushes -->
-        <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentBlue}" />
-        <SolidColorBrush x:Key="AccentBrushHover" Color="#7D6FF0" />
-        <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
-
-        <!-- Surface brushes -->
-        <SolidColorBrush x:Key="SurfacePrimaryBrush" Color="{DynamicResource SurfacePrimary}" />
-        <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="{DynamicResource SurfaceSecondary}" />
-        <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{DynamicResource SurfaceTertiary}" />
-        <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{DynamicResource SurfaceElevated}" />
-
-        <!-- Text brushes -->
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimary}" />
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondary}" />
-        <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextTertiary}" />
-
-        <!-- Border brushes -->
-        <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource BorderSubtle}" />
-        <SolidColorBrush x:Key="BorderDefaultBrush" Color="{DynamicResource BorderDefault}" />
-        <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrong}" />
-
-        <!-- Shadow brushes -->
-        <SolidColorBrush x:Key="ShadowLightBrush" Color="{DynamicResource ShadowLight}" Opacity="0.08" />
-        <SolidColorBrush x:Key="ShadowMediumBrush" Color="{DynamicResource ShadowMedium}" Opacity="0.16" />
-
-        <!-- Property quality indicators -->
-        <SolidColorBrush x:Key="MetaBestForeground" Color="#4ADE80" />
-        <SolidColorBrush x:Key="MetaWorstForeground" Color="#F87171" />
-
-        <!-- Similarity badge backgrounds (Dark theme) -->
-        <SolidColorBrush x:Key="BadgeHighBackground" Color="#166534" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeHighForeground" Color="#86EFAC" />
-        <SolidColorBrush x:Key="BadgeMediumBackground" Color="#1E3A5F" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeMediumForeground" Color="#93C5FD" />
-        <SolidColorBrush x:Key="BadgeLowBackground" Color="#7C2D12" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeLowForeground" Color="#FDBA74" />
-
-        <!-- DataGrid row hover -->
-        <SolidColorBrush x:Key="RowHoverBackground" Color="#FFFFFF" Opacity="0.04" />
-        <SolidColorBrush x:Key="RowSelectedBackground" Color="#6C5CE7" Opacity="0.12" />
-
-        <!-- Best quality badge -->
-        <SolidColorBrush x:Key="BestBadgeBackground" Color="#166534" Opacity="0.9" />
-        <SolidColorBrush x:Key="BestBadgeForeground" Color="#BBF7D0" />
-
-        <!-- Card styles -->
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="{DynamicResource SurfaceSecondary}" />
-        <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource BorderSubtle}" />
-        <SolidColorBrush x:Key="CardHoverBorderBrush" Color="{DynamicResource BorderDefault}" />
-        <SolidColorBrush x:Key="CardSelectedBorderBrush" Color="{DynamicResource AccentBlue}" />
-
-        <!-- Button styles -->
-        <SolidColorBrush x:Key="ButtonPrimaryBackground" Color="{DynamicResource AccentBlue}" />
-        <SolidColorBrush x:Key="ButtonPrimaryForeground" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="ButtonDangerBackground" Color="#DC2626" />
-        <SolidColorBrush x:Key="ButtonDangerForeground" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="ButtonGhostBorderBrush" Color="{DynamicResource BorderDefault}" />
-        <SolidColorBrush x:Key="ButtonGhostForegroundBrush" Color="{DynamicResource TextPrimary}" />
-
-        <!-- Group header -->
-        <SolidColorBrush x:Key="GroupHeaderBackground" Color="{DynamicResource SurfaceTertiary}" />
-        <SolidColorBrush x:Key="GroupHeaderBorderBrush" Color="{DynamicResource BorderSubtle}" />
+            <!-- ===== 默认回退资源 ===== -->
+            <SolidColorBrush x:Key="PrimaryBrush">#007AFF</SolidColorBrush>
+            <SolidColorBrush x:Key="TextPrimaryBrush">#1D1D1F</SolidColorBrush>
+            <SolidColorBrush x:Key="ButtonForegroundBrush">#6E6E73</SolidColorBrush>
+            <SolidColorBrush x:Key="SurfacePrimaryBrush">#FFFFFF</SolidColorBrush>
+            <SolidColorBrush x:Key="SurfaceSecondaryBrush">#F5F5F7</SolidColorBrush>
+            <SolidColorBrush x:Key="BorderDefaultBrush">#D1D1D6</SolidColorBrush>
+            <SolidColorBrush x:Key="ButtonPrimaryBackground">#007AFF</SolidColorBrush>
+            <SolidColorBrush x:Key="ButtonPrimaryForeground">#FFFFFF</SolidColorBrush>
+        </ResourceDictionary>
     </Styles.Resources>
-
-    <!-- ===== Light Theme Overrides ===== -->
-    <Style Selector="Window[RequestedThemeVariant=Light]">
-        <Style.Resources>
-            <!-- Surface & Background Colors (Light) -->
-            <Color x:Key="SurfacePrimary">#FFFFFF</Color>
-            <Color x:Key="SurfaceSecondary">#F8F9FC</Color>
-            <Color x:Key="SurfaceTertiary">#F0F1F5</Color>
-            <Color x:Key="SurfaceElevated">#E8E9F0</Color>
-
-            <!-- Text Colors (Light) -->
-            <Color x:Key="TextPrimary">#1A1B2E</Color>
-            <Color x:Key="TextSecondary">#5A5D72</Color>
-            <Color x:Key="TextTertiary">#8B8EA2</Color>
-
-            <!-- Border Colors (Light) -->
-            <Color x:Key="BorderSubtle">#E8E9F0</Color>
-            <Color x:Key="BorderDefault">#D4D5DE</Color>
-            <Color x:Key="BorderStrong">#B8B9C5</Color>
-
-            <!-- Shadow Colors (Light) -->
-            <Color x:Key="ShadowLight">#000000</Color>
-            <Color x:Key="ShadowMedium">#000000</Color>
-
-            <!-- Accent stays the same but slightly adjusted for light backgrounds -->
-            <Color x:Key="AccentBlue">#5B4BD5</Color>
-            <Color x:Key="AccentPurple">#9333EA</Color>
-            <Color x:Key="AccentGradientStart">#5B4BD5</Color>
-            <Color x:Key="AccentGradientEnd">#9333EA</Color>
-
-            <!-- Accent brushes (light) -->
-            <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentBlue}" />
-            <SolidColorBrush x:Key="AccentBrushHover" Color="#6C5CE7" />
-            <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
-
-            <!-- Surface brushes (light) -->
-            <SolidColorBrush x:Key="SurfacePrimaryBrush" Color="{DynamicResource SurfacePrimary}" />
-            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="{DynamicResource SurfaceSecondary}" />
-            <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{DynamicResource SurfaceTertiary}" />
-            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{DynamicResource SurfaceElevated}" />
-
-            <!-- Text brushes (light) -->
-            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimary}" />
-            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondary}" />
-            <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextTertiary}" />
-
-            <!-- Border brushes (light) -->
-            <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource BorderSubtle}" />
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="{DynamicResource BorderDefault}" />
-            <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrong}" />
-
-            <!-- Shadow brushes (light) -->
-            <SolidColorBrush x:Key="ShadowLightBrush" Color="{DynamicResource ShadowLight}" Opacity="0.06" />
-            <SolidColorBrush x:Key="ShadowMediumBrush" Color="{DynamicResource ShadowMedium}" Opacity="0.10" />
-
-            <!-- Property quality indicators (light) -->
-            <SolidColorBrush x:Key="MetaBestForeground" Color="#16A34A" />
-            <SolidColorBrush x:Key="MetaWorstForeground" Color="#DC2626" />
-
-            <!-- Similarity badges (light) -->
-            <SolidColorBrush x:Key="BadgeHighBackground" Color="#DCFCE7" />
-            <SolidColorBrush x:Key="BadgeHighForeground" Color="#166534" />
-            <SolidColorBrush x:Key="BadgeMediumBackground" Color="#DBEAFE" />
-            <SolidColorBrush x:Key="BadgeMediumForeground" Color="#1E3A5F" />
-            <SolidColorBrush x:Key="BadgeLowBackground" Color="#FFF7ED" />
-            <SolidColorBrush x:Key="BadgeLowForeground" Color="#7C2D12" />
-
-            <!-- DataGrid row hover (light) -->
-            <SolidColorBrush x:Key="RowHoverBackground" Color="#000000" Opacity="0.04" />
-            <SolidColorBrush x:Key="RowSelectedBackground" Color="#5B4BD5" Opacity="0.08" />
-
-            <!-- Best quality badge (light) -->
-            <SolidColorBrush x:Key="BestBadgeBackground" Color="#DCFCE7" />
-            <SolidColorBrush x:Key="BestBadgeForeground" Color="#166534" />
-
-            <!-- Card styles (light) -->
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="{DynamicResource SurfaceSecondary}" />
-            <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource BorderSubtle}" />
-            <SolidColorBrush x:Key="CardHoverBorderBrush" Color="{DynamicResource BorderDefault}" />
-            <SolidColorBrush x:Key="CardSelectedBorderBrush" Color="{DynamicResource AccentBlue}" />
-
-            <!-- Button styles (light) -->
-            <SolidColorBrush x:Key="ButtonPrimaryBackground" Color="{DynamicResource AccentBlue}" />
-            <SolidColorBrush x:Key="ButtonPrimaryForeground" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="ButtonDangerBackground" Color="#DC2626" />
-            <SolidColorBrush x:Key="ButtonDangerForeground" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="ButtonGhostBorderBrush" Color="{DynamicResource BorderDefault}" />
-            <SolidColorBrush x:Key="ButtonGhostForegroundBrush" Color="{DynamicResource TextPrimary}" />
-
-            <!-- Group header (light) -->
-            <SolidColorBrush x:Key="GroupHeaderBackground" Color="{DynamicResource SurfaceTertiary}" />
-            <SolidColorBrush x:Key="GroupHeaderBorderBrush" Color="{DynamicResource BorderSubtle}" />
-        </Style.Resources>
-    </Style>
 </Styles>

@@ -83,12 +83,17 @@ namespace VDF.Web.Services {
 			public int ThumbnailWidth { get; set; } = 480;
 			/// <summary>JPEG quality for thumbnails (10–95). Lower = smaller, more artifacts.</summary>
 			public int ThumbnailJpegQuality { get; set; } = 85;
+			/// <summary>UI language code (e.g., en, zh-Hans, de, es, fr, pt).</summary>
+			public string LanguageCode { get; set; } = "zh-Hans";
+			/// <summary>Whether to show the welcome guide on first visit.</summary>
+			public bool ShowWelcomeGuide { get; set; } = true;
 		}
 
 		/// <summary>WebUI-only settings that don't belong in VDF.Core.Settings.</summary>
 		public bool AutoLoadThumbnails { get; set; } = true;
 		public int ThumbnailWidth { get; set; } = 480;
 		public int ThumbnailJpegQuality { get; set; } = 85;
+		public string LanguageCode { get; set; } = "zh-Hans";
 
 		static string SettingsPath {
 			get {
@@ -157,6 +162,7 @@ namespace VDF.Web.Services {
 				AutoLoadThumbnails = dto.AutoLoadThumbnails;
 				ThumbnailWidth = Math.Clamp(dto.ThumbnailWidth, 48, 960);
 				ThumbnailJpegQuality = Math.Clamp(dto.ThumbnailJpegQuality, 10, 95);
+				LanguageCode = dto.LanguageCode;
 				return true;
 			}
 			catch (Exception ex) { _logger.LogWarning(ex, "Failed to load web settings file"); return false; }
@@ -214,6 +220,7 @@ namespace VDF.Web.Services {
 					AutoLoadThumbnails = AutoLoadThumbnails,
 					ThumbnailWidth = ThumbnailWidth,
 					ThumbnailJpegQuality = ThumbnailJpegQuality,
+					LanguageCode = LanguageCode,
 				};
 				File.WriteAllText(SettingsPath, JsonSerializer.Serialize(dto, WebJsonContext.Default.Dto));
 				return true;

@@ -3,8 +3,25 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { getSettings, updateSettings, saveSettings, cleanDatabase, clearDatabase, type AppSettings } from '../api/settings'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { Spinner } from '../components/shared/Spinner'
+import { useI18n } from '../i18n/i18n'
+import { availableLanguages } from '../i18n/i18n'
+import { useTheme } from '../contexts/useTheme'
+
+type TabId = 'scanning' | 'directories' | 'filters' | 'processing' | 'appearance' | 'database'
+
+const TABS: { id: TabId; labelKey: string }[] = [
+  { id: 'scanning', labelKey: 'Scanning' },
+  { id: 'directories', labelKey: 'Directories' },
+  { id: 'filters', labelKey: 'File Filters' },
+  { id: 'processing', labelKey: 'Processing' },
+  { id: 'appearance', labelKey: 'Appearance' },
+  { id: 'database', labelKey: 'Database' },
+]
 
 export function SettingsPage() {
+  const { t, lang, setLang } = useI18n()
+  const { theme, toggleTheme } = useTheme()
+  const [activeTab, setActiveTab] = useState<TabId>('scanning')
   const [localSettings, setLocalSettings] = useState<AppSettings | null>(null)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
   const [showCleanConfirm, setShowCleanConfirm] = useState(false)
@@ -28,7 +45,7 @@ export function SettingsPage() {
   const saveMutation = useMutation({
     mutationFn: saveSettings,
     onSuccess: () => {
-      setSaveFeedback('Settings saved')
+      setSaveFeedback(t('Settings saved'))
       setTimeout(() => setSaveFeedback(null), 3000)
     },
   })
@@ -36,7 +53,7 @@ export function SettingsPage() {
   const cleanMutation = useMutation({
     mutationFn: cleanDatabase,
     onSuccess: (res) => {
-      setSaveFeedback(`Cleaned: ${res.removed} entries removed, ${res.remaining} remaining`)
+      setSaveFeedback(`${t('Cleaned')}: ${res.removed} ${t('entries removed')}, ${res.remaining} ${t('remaining')}`)
       setTimeout(() => setSaveFeedback(null), 5000)
     },
   })
@@ -44,7 +61,7 @@ export function SettingsPage() {
   const clearMutation = useMutation({
     mutationFn: clearDatabase,
     onSuccess: () => {
-      setSaveFeedback('Database cleared')
+      setSaveFeedback(t('Database cleared'))
       setTimeout(() => setSaveFeedback(null), 3000)
     },
   })
@@ -56,6 +73,11 @@ export function SettingsPage() {
     updateMutation.mutate(updated)
   }, [localSettings, updateMutation])
 
+  const handleLanguageChange = useCallback((languageCode: string) => {
+    setLang(languageCode as any)
+    handleChange('languageCode', languageCode)
+  }, [setLang, handleChange])
+
   const handleSave = useCallback(() => {
     if (localSettings) {
       updateMutation.mutate(localSettings, {
@@ -64,225 +86,144 @@ export function SettingsPage() {
     }
   }, [localSettings, updateMutation, saveMutation])
 
+  const handleListChange = useCallback((key: 'includeList' | 'blackList' | 'filePathContainsTexts' | 'filePathNotContainsTexts', raw: string) => {
+    const items = raw.split('\n').map(s => s.trim()).filter(Boolean)
+    handleChange(key, items)
+  }, [handleChange])
+
   if (isLoading || !localSettings) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '3rem', color: 'var(--text-muted)' }}>
         <Spinner size={20} />
-        Loading settings...
+        {t('Loading settings...')}
       </div>
     )
   }
 
   return (
-    <div className="settings-page" style={{ maxWidth: 720, animation: 'fadeInUp 0.4s ease both' }}>
-      {/* Header */}
+    <div className="settings-page" style={{ animation: 'fadeInUp 0.4s ease both', height: '100%' }}>
+      {/* Top bar with Save */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '1.75rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid var(--border-subtle)',
+        justifyContent: 'flex-end',
+        gap: '0.75rem',
+        padding: '0.6rem 1rem',
+        borderBottom: '1px solid var(--border-default)',
+        background: 'var(--bg-surface)',
       }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.6rem',
-          fontWeight: 700,
-          margin: 0,
-          color: 'var(--text-primary)',
-          letterSpacing: '0.02em',
+        {saveFeedback && (
+          <span style={{
+            fontSize: '11px',
+            color: 'var(--accent-success-text)',
+            fontFamily: 'var(--font-mono)',
+            background: 'rgba(34, 197, 94, 0.08)',
+            padding: '0.2rem 0.6rem',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(34, 197, 94, 0.15)',
+          }}>
+            {saveFeedback}
+          </span>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          style={{
+            padding: '0.4rem 1.2rem',
+            borderRadius: 'var(--radius-md)',
+            border: 'none',
+            background: 'var(--accent-primary)',
+            color: '#fff',
+            cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
+            fontSize: '11px',
+            fontWeight: 600,
+            fontFamily: 'var(--font-sans)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            transition: 'all var(--transition-fast)',
+            opacity: saveMutation.isPending ? 0.7 : 1,
+          }}
+        >
+          {saveMutation.isPending && <Spinner size={11} />}
+          {t('Save')}
+        </button>
+      </div>
+
+      {/* Main layout: sidebar tabs + content */}
+      <div style={{ display: 'flex', height: 'calc(100% - 41px)' }}>
+        {/* Sidebar tabs */}
+        <div style={{
+          width: 150,
+          minWidth: 150,
+          background: 'var(--bg-sidebar)',
+          borderRight: '1px solid var(--border-default)',
+          padding: '0.5rem 0.4rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          overflowY: 'auto',
         }}>
-          Settings
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {saveFeedback && (
-            <span style={{
-              fontSize: '0.78rem',
-              color: 'var(--accent-success-text)',
-              fontFamily: 'var(--font-mono)',
-              background: 'rgba(34, 197, 94, 0.08)',
-              padding: '0.3rem 0.7rem',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(34, 197, 94, 0.15)',
-            }}>
-              {saveFeedback}
-            </span>
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`nav-tab${activeTab === tab.id ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </div>
+
+        {/* Content area */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0.75rem 1rem',
+          background: 'var(--bg-content)',
+        }}>
+          {activeTab === 'scanning' && (
+            <ScanningTab settings={localSettings} onChange={handleChange} t={t} />
           )}
-          <button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            style={{
-              padding: '0.55rem 1.5rem',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              background: 'linear-gradient(135deg, var(--accent-primary), #0284c7)',
-              color: '#fff',
-              cursor: saveMutation.isPending ? 'not-allowed' : 'pointer',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              fontFamily: 'var(--font-sans)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxShadow: '0 0 20px var(--accent-primary-glow), var(--shadow-sm)',
-              transition: 'all var(--transition-base)',
-              letterSpacing: '0.03em',
-              opacity: saveMutation.isPending ? 0.7 : 1,
-            }}
-          >
-            {saveMutation.isPending && <Spinner size={12} />}
-            Save
-          </button>
+          {activeTab === 'directories' && (
+            <DirectoriesTab settings={localSettings} onListChange={handleListChange} t={t} />
+          )}
+          {activeTab === 'filters' && (
+            <FiltersTab settings={localSettings} onChange={handleChange} onListChange={handleListChange} t={t} />
+          )}
+          {activeTab === 'processing' && (
+            <ProcessingTab settings={localSettings} onChange={handleChange} t={t} />
+          )}
+          {activeTab === 'appearance' && (
+            <AppearanceTab
+              settings={localSettings}
+              onChange={handleChange}
+              onLanguageChange={handleLanguageChange}
+              lang={lang}
+              theme={theme}
+              toggleTheme={toggleTheme}
+              t={t}
+            />
+          )}
+          {activeTab === 'database' && (
+            <DatabaseTab
+              settings={localSettings}
+              onChange={handleChange}
+              onClean={() => setShowCleanConfirm(true)}
+              onClear={() => setShowClearConfirm(true)}
+              cleanPending={cleanMutation.isPending}
+              clearPending={clearMutation.isPending}
+              t={t}
+            />
+          )}
         </div>
       </div>
 
-      {/* Similarity */}
-      <Section title="Similarity">
-        <SliderField label="Similarity Threshold" value={localSettings.threshhold} min={0} max={100} step={1}
-          onChange={v => handleChange('threshhold', v)} description="Hash difference threshold. Lower = stricter matching (fewer false positives)." />
-        <SliderField label="Percent Match" value={localSettings.percent} min={0} max={100} step={0.5}
-          onChange={v => handleChange('percent', v)} format={v => `${v}%`} description="Minimum similarity percentage to report as duplicate." />
-        <SliderField label="Duration Tolerance (%)" value={localSettings.percentDurationDifference} min={0} max={100} step={1}
-          onChange={v => handleChange('percentDurationDifference', v)} format={v => `${v}%`} description="Maximum allowed duration difference between files to be considered duplicates." />
-        <ToggleField label="Compare Horizontally Flipped" value={localSettings.compareHorizontallyFlipped}
-          onChange={v => handleChange('compareHorizontallyFlipped', v)} description="Also detect duplicates that are horizontally mirrored." />
-        <ToggleField label="Ignore Black Pixels" value={localSettings.ignoreBlackPixels}
-          onChange={v => handleChange('ignoreBlackPixels', v)} description="Exclude black pixels from similarity comparison." />
-        <ToggleField label="Ignore White Pixels" value={localSettings.ignoreWhitePixels}
-          onChange={v => handleChange('ignoreWhitePixels', v)} description="Exclude white pixels from similarity comparison." />
-      </Section>
-
-      {/* Scanning */}
-      <Section title="Scanning">
-        <ToggleField label="Include Sub-Directories" value={localSettings.includeSubDirectories}
-          onChange={v => handleChange('includeSubDirectories', v)} description="Recursively scan all subdirectories." />
-        <ToggleField label="Include Images" value={localSettings.includeImages}
-          onChange={v => handleChange('includeImages', v)} description="Also scan image files for duplicates." />
-        <ToggleField label="Use Perceptual Hashing" value={localSettings.usePHashing}
-          onChange={v => handleChange('usePHashing', v)} description="Use perceptual hashing for better detection of resized/compressed duplicates." />
-        <ToggleField label="Ignore Read-Only Folders" value={localSettings.ignoreReadOnlyFolders}
-          onChange={v => handleChange('ignoreReadOnlyFolders', v)} description="Skip folders that cannot be written to." />
-        <ToggleField label="Ignore Reparse Points" value={localSettings.ignoreReparsePoints}
-          onChange={v => handleChange('ignoreReparsePoints', v)} description="Skip symbolic links and junction points." />
-        <ToggleField label="Exclude Hard Links" value={localSettings.excludeHardLinks}
-          onChange={v => handleChange('excludeHardLinks', v)} description="Skip hard links to already-scanned files." />
-        <ToggleField label="Use EXIF Creation Date" value={localSettings.useExifCreationDate}
-          onChange={v => handleChange('useExifCreationDate', v)} description="Use EXIF metadata for image creation dates." />
-        <ToggleField label="Include Non-Existing Files" value={localSettings.includeNonExistingFiles}
-          onChange={v => handleChange('includeNonExistingFiles', v)} description="Compare against database entries whose files no longer exist." />
-        <ToggleField label="Scan Against Entire Database" value={localSettings.scanAgainstEntireDatabase}
-          onChange={v => handleChange('scanAgainstEntireDatabase', v)} description="Compare new files against all known entries, not just scanned folders." />
-        <SliderField label="Max Degree of Parallelism" value={localSettings.maxDegreeOfParallelism} min={1} max={32} step={1}
-          onChange={v => handleChange('maxDegreeOfParallelism', v)} description="Number of parallel scanning threads. Higher = faster but more CPU usage." />
-        <SliderField label="Thumbnail Count" value={localSettings.thumbnailCount} min={1} max={10} step={1}
-          onChange={v => handleChange('thumbnailCount', v)} description="Number of frame samples per video for comparison." />
-      </Section>
-
-      {/* File Filters */}
-      <Section title="File Filters">
-        <ToggleField label="Filter by File Size" value={localSettings.filterByFileSize}
-          onChange={v => handleChange('filterByFileSize', v)} description="Only scan files within a size range." />
-        {localSettings.filterByFileSize && (
-          <>
-            <SliderField label="Minimum File Size (MB)" value={localSettings.minimumFileSize} min={0} max={10000} step={1}
-              onChange={v => handleChange('minimumFileSize', v)} format={v => `${v} MB`} />
-            <SliderField label="Maximum File Size (MB)" value={localSettings.maximumFileSize} min={0} max={100000} step={1}
-              onChange={v => handleChange('maximumFileSize', v)} format={v => `${v} MB`} />
-          </>
-        )}
-        <ToggleField label="Filter by Path Contains" value={localSettings.filterByFilePathContains}
-          onChange={v => handleChange('filterByFilePathContains', v)} description="Only scan files whose path contains specific text." />
-        <ToggleField label="Filter by Path Not Contains" value={localSettings.filterByFilePathNotContains}
-          onChange={v => handleChange('filterByFilePathNotContains', v)} description="Skip files whose path contains specific text." />
-        <SliderField label="Duration Min Difference (s)" value={localSettings.durationDifferenceMinSeconds} min={0} max={300} step={0.5}
-          onChange={v => handleChange('durationDifferenceMinSeconds', v)} description="Minimum duration difference to consider (0 = disabled)." />
-        <SliderField label="Duration Max Difference (s)" value={localSettings.durationDifferenceMaxSeconds} min={0} max={300} step={0.5}
-          onChange={v => handleChange('durationDifferenceMaxSeconds', v)} description="Maximum duration difference allowed (0 = no limit)." />
-      </Section>
-
-      {/* FFmpeg */}
-      <Section title="FFmpeg">
-        <ToggleField label="Use Native FFmpeg Binding" value={localSettings.useNativeFfmpegBinding}
-          onChange={v => handleChange('useNativeFfmpegBinding', v)} description="Use FFmpeg.AutoGen native bindings instead of CLI (faster but requires FFmpeg shared libraries)." />
-        <ToggleField label="Extended FFTools Logging" value={localSettings.extendedFFToolsLogging}
-          onChange={v => handleChange('extendedFFToolsLogging', v)} description="Log detailed FFmpeg/FFprobe command output for debugging." />
-        <ToggleField label="Always Retry Failed Sampling" value={localSettings.alwaysRetryFailedSampling}
-          onChange={v => handleChange('alwaysRetryFailedSampling', v)} description="Re-attempt frame sampling on files that failed previously." />
-        <ToggleField label="Log Excluded Files" value={localSettings.logExcludedFiles}
-          onChange={v => handleChange('logExcludedFiles', v)} description="Log files skipped by filters (increases log size)." />
-        <SelectField label="Hardware Acceleration" value={localSettings.hardwareAccelerationMode}
-          options={['Auto', 'QSV', 'CUDA', 'D3D11VA', 'VAAPI', 'None']}
-          onChange={v => handleChange('hardwareAccelerationMode', v)} description="GPU acceleration for video decoding (requires compatible hardware)." />
-        <TextField label="Custom FF Arguments" value={localSettings.customFFArguments}
-          onChange={v => handleChange('customFFArguments', v)} placeholder="e.g. -hwaccel cuda" description="Additional FFmpeg command-line arguments." />
-        <SliderField label="Max Sampling Duration (s)" value={localSettings.maxSamplingDurationSeconds} min={0} max={600} step={1}
-          onChange={v => handleChange('maxSamplingDurationSeconds', v)} description="Maximum seconds of video to sample (0 = entire video)." />
-      </Section>
-
-      {/* Partial Clip Detection */}
-      <Section title="Partial Clip Detection">
-        <ToggleField label="Enable Partial Clip Detection" value={localSettings.enablePartialClipDetection}
-          onChange={v => handleChange('enablePartialClipDetection', v)} description="Detect when a shorter video is a clip from a longer one (audio fingerprinting)." />
-        {localSettings.enablePartialClipDetection && (
-          <>
-            <SliderField label="Min Clip Ratio" value={localSettings.partialClipMinRatio} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipMinRatio', v)} format={v => `${(v * 100).toFixed(0)}%`}
-              description="Minimum clip duration as percentage of source (e.g. 10% means clip must be at least 10% of source)." />
-            <SliderField label="Similarity Threshold" value={localSettings.partialClipSimilarityThreshold} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipSimilarityThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
-              description="Minimum audio fingerprint similarity for a match (higher = fewer false positives)." />
-            <ToggleField label="Require Visual Match" value={localSettings.partialClipRequireVisualMatch}
-              onChange={v => handleChange('partialClipRequireVisualMatch', v)} description="Also verify visual similarity at the matched offset." />
-            <SliderField label="Visual Threshold" value={localSettings.partialClipVisualThreshold} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipVisualThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
-              description="Minimum visual similarity for confirmation (when enabled)." />
-          </>
-        )}
-      </Section>
-
-      {/* WebUI Thumbnails */}
-      <Section title="WebUI Thumbnails">
-        <ToggleField label="Auto-Load Thumbnails" value={localSettings.autoLoadThumbnails}
-          onChange={v => handleChange('autoLoadThumbnails', v)} description="Automatically load thumbnails on the results page." />
-        <SliderField label="Thumbnail Width (px)" value={localSettings.thumbnailWidth} min={48} max={960} step={16}
-          onChange={v => handleChange('thumbnailWidth', v)} format={v => `${v}px`}
-          description="Thumbnail resolution. Lower = less memory usage, more pixelated." />
-        <SliderField label="JPEG Quality" value={localSettings.thumbnailJpegQuality} min={10} max={95} step={5}
-          onChange={v => handleChange('thumbnailJpegQuality', v)}
-          description="JPEG compression quality. Lower = smaller files, more artifacts." />
-      </Section>
-
-      {/* Database */}
-      <Section title="Database">
-        <TextField label="Custom Database Folder" value={localSettings.customDatabaseFolder}
-          onChange={v => handleChange('customDatabaseFolder', v)} placeholder="Leave empty for default"
-          description="Custom location for the scan database (default: system config folder)." />
-        <SliderField label="Checkpoint Interval (min)" value={localSettings.databaseCheckpointIntervalMinutes} min={1} max={60} step={1}
-          onChange={v => handleChange('databaseCheckpointIntervalMinutes', v)}
-          description="How often to save scan progress during scanning (prevents data loss on crash)." />
-        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.75rem' }}>
-          <button
-            onClick={() => setShowCleanConfirm(true)}
-            disabled={cleanMutation.isPending}
-            style={dangerBtnStyle}
-          >
-            {cleanMutation.isPending ? 'Cleaning...' : 'Clean Database'}
-          </button>
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            disabled={clearMutation.isPending}
-            style={dangerBtnStyle}
-          >
-            {clearMutation.isPending ? 'Clearing...' : 'Clear Database'}
-          </button>
-        </div>
-      </Section>
-
       <ConfirmDialog
         open={showCleanConfirm}
-        title="Clean Database"
-        message="Remove database entries for files that no longer exist on disk?"
-        confirmLabel="Clean"
+        title={t('Clean Database')}
+        message={t('Remove database entries for files that no longer exist on disk?')}
+        confirmLabel={t('Clean')}
         variant="warning"
         onConfirm={() => { cleanMutation.mutate(); setShowCleanConfirm(false) }}
         onCancel={() => setShowCleanConfirm(false)}
@@ -290,9 +231,9 @@ export function SettingsPage() {
 
       <ConfirmDialog
         open={showClearConfirm}
-        title="Clear Database"
-        message="This will permanently delete ALL entries from the scan database. This cannot be undone."
-        confirmLabel="Clear All"
+        title={t('Clear Database')}
+        message={t('This will permanently delete ALL entries from the scan database. This cannot be undone.')}
+        confirmLabel={t('Clear All')}
         variant="danger"
         onConfirm={() => { clearMutation.mutate(); setShowClearConfirm(false) }}
         onCancel={() => setShowClearConfirm(false)}
@@ -301,44 +242,305 @@ export function SettingsPage() {
   )
 }
 
+/* ────────────────────────────────────────────────
+   Tab: Scanning
+   ──────────────────────────────────────────────── */
+function ScanningTab({ settings, onChange, t }: { settings: AppSettings; onChange: (k: keyof AppSettings, v: unknown) => void; t: (k: string) => string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('Similarity')}>
+        <SliderField label={t('Similarity Threshold')} value={settings.threshhold} min={0} max={100} step={1}
+          onChange={v => onChange('threshhold', v)} description={t('Hash difference threshold. Lower = stricter matching (fewer false positives).')} />
+        <SliderField label={t('Percent Match')} value={settings.percent} min={0} max={100} step={0.5}
+          onChange={v => onChange('percent', v)} format={v => `${v}%`} description={t('Minimum similarity percentage to report as duplicate.')} />
+        <SliderField label={t('Duration Tolerance (%)')} value={settings.percentDurationDifference} min={0} max={100} step={1}
+          onChange={v => onChange('percentDurationDifference', v)} format={v => `${v}%`} description={t('Maximum allowed duration difference between files to be considered duplicates.')} />
+        <ToggleField label={t('Compare Horizontally Flipped')} value={settings.compareHorizontallyFlipped}
+          onChange={v => onChange('compareHorizontallyFlipped', v)} description={t('Also detect duplicates that are horizontally mirrored.')} />
+        <ToggleField label={t('Ignore Black Pixels')} value={settings.ignoreBlackPixels}
+          onChange={v => onChange('ignoreBlackPixels', v)} description={t('Exclude black pixels from similarity comparison.')} />
+        <ToggleField label={t('Ignore White Pixels')} value={settings.ignoreWhitePixels}
+          onChange={v => onChange('ignoreWhitePixels', v)} description={t('Exclude white pixels from similarity comparison.')} />
+      </Section>
+
+      <Section title={t('Scanning')}>
+        <ToggleField label={t('Include Sub-Directories')} value={settings.includeSubDirectories}
+          onChange={v => onChange('includeSubDirectories', v)} description={t('Recursively scan all subdirectories.')} />
+        <ToggleField label={t('Include Images')} value={settings.includeImages}
+          onChange={v => onChange('includeImages', v)} description={t('Also scan image files for duplicates.')} />
+        <ToggleField label={t('Use Perceptual Hashing')} value={settings.usePHashing}
+          onChange={v => onChange('usePHashing', v)} description={t('Use perceptual hashing for better detection of resized/compressed duplicates.')} />
+        <ToggleField label={t('Ignore Read-Only Folders')} value={settings.ignoreReadOnlyFolders}
+          onChange={v => onChange('ignoreReadOnlyFolders', v)} description={t('Skip folders that cannot be written to.')} />
+        <ToggleField label={t('Ignore Reparse Points')} value={settings.ignoreReparsePoints}
+          onChange={v => onChange('ignoreReparsePoints', v)} description={t('Skip symbolic links and junction points.')} />
+        <ToggleField label={t('Exclude Hard Links')} value={settings.excludeHardLinks}
+          onChange={v => onChange('excludeHardLinks', v)} description={t('Skip hard links to already-scanned files.')} />
+        <ToggleField label={t('Use EXIF Creation Date')} value={settings.useExifCreationDate}
+          onChange={v => onChange('useExifCreationDate', v)} description={t('Use EXIF metadata for image creation dates.')} />
+        <ToggleField label={t('Include Non-Existing Files')} value={settings.includeNonExistingFiles}
+          onChange={v => onChange('includeNonExistingFiles', v)} description={t('Compare against database entries whose files no longer exist.')} />
+        <ToggleField label={t('Scan Against Entire Database')} value={settings.scanAgainstEntireDatabase}
+          onChange={v => onChange('scanAgainstEntireDatabase', v)} description={t('Compare new files against all known entries, not just scanned folders.')} />
+        <SliderField label={t('Max Degree of Parallelism')} value={settings.maxDegreeOfParallelism} min={1} max={32} step={1}
+          onChange={v => onChange('maxDegreeOfParallelism', v)} description={t('Number of parallel scanning threads. Higher = faster but more CPU usage.')} />
+        <SliderField label={t('Thumbnail Count')} value={settings.thumbnailCount} min={1} max={10} step={1}
+          onChange={v => onChange('thumbnailCount', v)} description={t('Number of frame samples per video for comparison.')} />
+      </Section>
+
+      <Section title={t('Partial Clip Detection')}>
+        <ToggleField label={t('Enable Partial Clip Detection')} value={settings.enablePartialClipDetection}
+          onChange={v => onChange('enablePartialClipDetection', v)} description={t('Detect when a shorter video is a clip from a longer one (audio fingerprinting).')} />
+        {settings.enablePartialClipDetection && (
+          <>
+            <SliderField label={t('Min Clip Ratio')} value={settings.partialClipMinRatio} min={0} max={1} step={0.01}
+              onChange={v => onChange('partialClipMinRatio', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description={t('Minimum clip duration as percentage of source (e.g. 10% means clip must be at least 10% of source).')} />
+            <SliderField label={t('Similarity Threshold')} value={settings.partialClipSimilarityThreshold} min={0} max={1} step={0.01}
+              onChange={v => onChange('partialClipSimilarityThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description={t('Minimum audio fingerprint similarity for a match (higher = fewer false positives).')} />
+            <ToggleField label={t('Require Visual Match')} value={settings.partialClipRequireVisualMatch}
+              onChange={v => onChange('partialClipRequireVisualMatch', v)} description={t('Also verify visual similarity at the matched offset.')} />
+            <SliderField label={t('Visual Threshold')} value={settings.partialClipVisualThreshold} min={0} max={1} step={0.01}
+              onChange={v => onChange('partialClipVisualThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description={t('Minimum visual similarity for confirmation (when enabled).')} />
+          </>
+        )}
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Tab: Directories
+   ──────────────────────────────────────────────── */
+function DirectoriesTab({ settings, onListChange, t }: {
+  settings: AppSettings
+  onListChange: (k: 'includeList' | 'blackList', raw: string) => void
+  t: (k: string) => string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('Directories')}>
+        <ListField label={t('Include Directories')} value={settings.includeList}
+          onChange={v => onListChange('includeList', v)}
+          description={t('Only scan files in these directories (one per line). Leave empty to scan all.')} />
+        <ListField label={t('Exclude Directories')} value={settings.blackList}
+          onChange={v => onListChange('blackList', v)}
+          description={t('Skip files in these directories (one per line).')} />
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Tab: File Filters
+   ──────────────────────────────────────────────── */
+function FiltersTab({ settings, onChange, onListChange, t }: {
+  settings: AppSettings
+  onChange: (k: keyof AppSettings, v: unknown) => void
+  onListChange: (k: 'filePathContainsTexts' | 'filePathNotContainsTexts', raw: string) => void
+  t: (k: string) => string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('File Filters')}>
+        <ToggleField label={t('Filter by File Size')} value={settings.filterByFileSize}
+          onChange={v => onChange('filterByFileSize', v)} description={t('Only scan files within a size range.')} />
+        {settings.filterByFileSize && (
+          <>
+            <SliderField label={t('Minimum File Size (MB)')} value={settings.minimumFileSize} min={0} max={10000} step={1}
+              onChange={v => onChange('minimumFileSize', v)} format={v => `${v} MB`} />
+            <SliderField label={t('Maximum File Size (MB)')} value={settings.maximumFileSize} min={0} max={100000} step={1}
+              onChange={v => onChange('maximumFileSize', v)} format={v => `${v} MB`} />
+          </>
+        )}
+        <ToggleField label={t('Filter by Path Contains')} value={settings.filterByFilePathContains}
+          onChange={v => onChange('filterByFilePathContains', v)} description={t('Only scan files whose path contains specific text.')} />
+        {settings.filterByFilePathContains && (
+          <ListField label={t('Path Contains Texts')} value={settings.filePathContainsTexts}
+            onChange={v => onListChange('filePathContainsTexts', v)}
+            description={t('One text per line. Files matching any of these will be included.')} />
+        )}
+        <ToggleField label={t('Filter by Path Not Contains')} value={settings.filterByFilePathNotContains}
+          onChange={v => onChange('filterByFilePathNotContains', v)} description={t('Skip files whose path contains specific text.')} />
+        {settings.filterByFilePathNotContains && (
+          <ListField label={t('Path Not Contains Texts')} value={settings.filePathNotContainsTexts}
+            onChange={v => onListChange('filePathNotContainsTexts', v)}
+            description={t('One text per line. Files matching any of these will be excluded.')} />
+        )}
+        <SliderField label={t('Duration Min Difference (s)')} value={settings.durationDifferenceMinSeconds} min={0} max={300} step={0.5}
+          onChange={v => onChange('durationDifferenceMinSeconds', v)} description={t('Minimum duration difference to consider (0 = disabled).')} />
+        <SliderField label={t('Duration Max Difference (s)')} value={settings.durationDifferenceMaxSeconds} min={0} max={300} step={0.5}
+          onChange={v => onChange('durationDifferenceMaxSeconds', v)} description={t('Maximum duration difference allowed (0 = no limit).')} />
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Tab: Processing (FFmpeg settings)
+   ──────────────────────────────────────────────── */
+function ProcessingTab({ settings, onChange, t }: { settings: AppSettings; onChange: (k: keyof AppSettings, v: unknown) => void; t: (k: string) => string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('FFmpeg')}>
+        <ToggleField label={t('Use Native FFmpeg Binding')} value={settings.useNativeFfmpegBinding}
+          onChange={v => onChange('useNativeFfmpegBinding', v)} description={t('Use FFmpeg.AutoGen native bindings instead of CLI (faster but requires FFmpeg shared libraries).')} />
+        <ToggleField label={t('Extended FFTools Logging')} value={settings.extendedFFToolsLogging}
+          onChange={v => onChange('extendedFFToolsLogging', v)} description={t('Log detailed FFmpeg/FFprobe command output for debugging.')} />
+        <ToggleField label={t('Always Retry Failed Sampling')} value={settings.alwaysRetryFailedSampling}
+          onChange={v => onChange('alwaysRetryFailedSampling', v)} description={t('Re-attempt frame sampling on files that failed previously.')} />
+        <ToggleField label={t('Log Excluded Files')} value={settings.logExcludedFiles}
+          onChange={v => onChange('logExcludedFiles', v)} description={t('Log files skipped by filters (increases log size).')} />
+        <SelectField label={t('Hardware Acceleration')} value={settings.hardwareAccelerationMode}
+          options={['Auto', 'QSV', 'CUDA', 'D3D11VA', 'VAAPI', 'None']}
+          onChange={v => onChange('hardwareAccelerationMode', v)} description={t('GPU acceleration for video decoding (requires compatible hardware).')} />
+        <TextField label={t('Custom FF Arguments')} value={settings.customFFArguments}
+          onChange={v => onChange('customFFArguments', v)} placeholder="e.g. -hwaccel cuda" description={t('Additional FFmpeg command-line arguments.')} />
+        <SliderField label={t('Max Sampling Duration (s)')} value={settings.maxSamplingDurationSeconds} min={0} max={600} step={1}
+          onChange={v => onChange('maxSamplingDurationSeconds', v)} description={t('Maximum seconds of video to sample (0 = entire video).')} />
+      </Section>
+
+      <Section title={t('WebUI Thumbnails')}>
+        <ToggleField label={t('Auto-Load Thumbnails')} value={settings.autoLoadThumbnails}
+          onChange={v => onChange('autoLoadThumbnails', v)} description={t('Automatically load thumbnails on the results page.')} />
+        <SliderField label={t('Thumbnail Width (px)')} value={settings.thumbnailWidth} min={48} max={960} step={16}
+          onChange={v => onChange('thumbnailWidth', v)} format={v => `${v}px`}
+          description={t('Thumbnail resolution. Lower = less memory usage, more pixelated.')} />
+        <SliderField label={t('JPEG Quality')} value={settings.thumbnailJpegQuality} min={10} max={95} step={5}
+          onChange={v => onChange('thumbnailJpegQuality', v)}
+          description={t('JPEG compression quality. Lower = smaller files, more artifacts.')} />
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Tab: Appearance
+   ──────────────────────────────────────────────── */
+function AppearanceTab({ settings, onChange, onLanguageChange, lang, theme, toggleTheme, t }: {
+  settings: AppSettings
+  onChange: (k: keyof AppSettings, v: unknown) => void
+  onLanguageChange: (code: string) => void
+  lang: string
+  theme: string
+  toggleTheme: () => void
+  t: (k: string) => string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('Appearance')}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+          <div>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{t('Select language')}</span>
+          </div>
+          <select
+            value={lang}
+            onChange={e => onLanguageChange(e.target.value)}
+            style={{
+              padding: '0.3rem 0.5rem',
+              border: '1px solid var(--border-input)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-input)',
+              color: 'var(--text-primary)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              outline: 'none',
+              minWidth: 140,
+            }}
+          >
+            {availableLanguages.map(l => (
+              <option key={l.code} value={l.code}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+        <ToggleField label={t('Dark Mode')} value={theme === 'dark'}
+          onChange={() => toggleTheme()} description={t('Enable dark theme')} />
+        <ToggleField label={t('Show Welcome Guide')} value={settings.showWelcomeGuide}
+          onChange={v => onChange('showWelcomeGuide', v)} description={t('Show the getting started guide when first visiting the app.')} />
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Tab: Database
+   ──────────────────────────────────────────────── */
+function DatabaseTab({ settings, onChange, onClean, onClear, cleanPending, clearPending, t }: {
+  settings: AppSettings
+  onChange: (k: keyof AppSettings, v: unknown) => void
+  onClean: () => void
+  onClear: () => void
+  cleanPending: boolean
+  clearPending: boolean
+  t: (k: string) => string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <Section title={t('Database')}>
+        <TextField label={t('Custom Database Folder')} value={settings.customDatabaseFolder}
+          onChange={v => onChange('customDatabaseFolder', v)} placeholder={t('Leave empty for default')}
+          description={t('Custom location for the scan database (default: system config folder).')} />
+        <SliderField label={t('Checkpoint Interval (min)')} value={settings.databaseCheckpointIntervalMinutes} min={1} max={60} step={1}
+          onChange={v => onChange('databaseCheckpointIntervalMinutes', v)}
+          description={t('How often to save scan progress during scanning (prevents data loss on crash).')} />
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <button
+            onClick={onClean}
+            disabled={cleanPending}
+            style={dangerBtnStyle}
+          >
+            {cleanPending ? `${t('Clean')}ing...` : t('Clean Database')}
+          </button>
+          <button
+            onClick={onClear}
+            disabled={clearPending}
+            style={dangerBtnStyle}
+          >
+            {clearPending ? `${t('Clear')}ing...` : t('Clear Database')}
+          </button>
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+/* ────────────────────────────────────────────────
+   Shared field components
+   ──────────────────────────────────────────────── */
+
 const dangerBtnStyle: React.CSSProperties = {
-  padding: '0.45rem 1rem',
+  padding: '0.35rem 0.85rem',
   borderRadius: 'var(--radius-md)',
   border: '1px solid var(--accent-error-border)',
   background: 'var(--accent-error-bg)',
   color: 'var(--accent-danger-text)',
   cursor: 'pointer',
-  fontSize: '0.78rem',
+  fontSize: '11px',
   fontWeight: 500,
   fontFamily: 'var(--font-sans)',
   transition: 'all var(--transition-fast)',
-  letterSpacing: '0.02em',
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{
-      background: 'var(--bg-surface)',
-      border: '1px solid var(--border-default)',
-      borderLeft: '3px solid var(--accent-primary)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '1.15rem 1.35rem',
-      marginBottom: '0.85rem',
-      boxShadow: 'var(--shadow-sm)',
-      transition: 'box-shadow var(--transition-base), border-color var(--transition-base)',
-    }}>
+    <div style={{ marginBottom: '0.25rem' }}>
       <h2 style={{
-        margin: '0 0 0.85rem',
+        margin: '0 0 0.5rem',
         fontFamily: 'var(--font-display)',
-        fontSize: '0.82rem',
+        fontSize: '11px',
         fontWeight: 600,
-        color: 'var(--accent-primary)',
+        color: 'var(--text-muted)',
         textTransform: 'uppercase',
-        letterSpacing: '0.12em',
+        letterSpacing: '0.1em',
+        paddingBottom: '0.35rem',
+        borderBottom: '1px solid var(--border-default)',
       }}>
         {title}
       </h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
         {children}
       </div>
     </div>
@@ -353,35 +555,34 @@ interface FieldProps {
 function ToggleField({ label, value, onChange, description }: FieldProps & { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-      <div>
-        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
-        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
+      <div style={{ minWidth: 0 }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{description}</div>}
       </div>
       <button
         onClick={() => onChange(!value)}
         style={{
-          width: 40,
-          height: 22,
-          borderRadius: 11,
+          width: 36,
+          height: 20,
+          borderRadius: 10,
           border: 'none',
           background: value ? 'var(--accent-primary)' : 'var(--bg-input)',
           cursor: 'pointer',
           position: 'relative',
-          transition: 'background var(--transition-base), box-shadow var(--transition-base)',
+          transition: 'background var(--transition-base)',
           flexShrink: 0,
-          boxShadow: value ? '0 0 12px var(--accent-primary-glow)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
+          boxShadow: value ? '0 0 10px var(--accent-primary-glow)' : 'inset 0 1px 3px rgba(0,0,0,0.3)',
         }}
       >
         <div style={{
-          width: 16,
-          height: 16,
+          width: 14,
+          height: 14,
           borderRadius: '50%',
           background: value ? '#fff' : 'var(--text-muted)',
           position: 'absolute',
           top: 3,
-          left: value ? 21 : 3,
-          transition: 'left var(--transition-base), background var(--transition-base), box-shadow var(--transition-base)',
-          boxShadow: value ? '0 0 6px rgba(14, 165, 233, 0.4)' : 'none',
+          left: value ? 19 : 3,
+          transition: 'left var(--transition-base)',
         }} />
       </button>
     </div>
@@ -395,21 +596,18 @@ function SliderField({ label, value, min, max, step, onChange, format, descripti
   const pct = ((value - min) / (max - min)) * 100
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem', alignItems: 'baseline' }}>
-        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px', alignItems: 'baseline' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
         <span style={{
-          fontSize: '0.78rem',
+          fontSize: '11px',
           color: 'var(--accent-primary)',
           fontFamily: 'var(--font-mono)',
-          background: 'var(--accent-primary-glow)',
-          padding: '0.1rem 0.5rem',
-          borderRadius: 'var(--radius-sm)',
           fontWeight: 500,
         }}>
           {format ? format(value) : value}
         </span>
       </div>
-      {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>{description}</div>}
+      {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '2px' }}>{description}</div>}
       <input
         type="range"
         min={min}
@@ -438,25 +636,24 @@ function SelectField({ label, value, options, onChange, description }: FieldProp
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-      <div>
-        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
-        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
+      <div style={{ minWidth: 0 }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{description}</div>}
       </div>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          padding: '0.4rem 0.65rem',
+          padding: '0.3rem 0.5rem',
           border: '1px solid var(--border-input)',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-input)',
           color: 'var(--text-primary)',
-          fontSize: '0.8rem',
+          fontSize: '11px',
           fontFamily: 'var(--font-mono)',
           cursor: 'pointer',
           outline: 'none',
-          transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
-          minWidth: 120,
+          minWidth: 100,
         }}
       >
         {options.map(opt => (
@@ -472,9 +669,9 @@ function TextField({ label, value, onChange, placeholder, description }: FieldPr
 }) {
   return (
     <div>
-      <div style={{ marginBottom: '0.15rem' }}>
-        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
-        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
+      <div style={{ marginBottom: '1px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{description}</div>}
       </div>
       <input
         value={value}
@@ -482,16 +679,47 @@ function TextField({ label, value, onChange, placeholder, description }: FieldPr
         placeholder={placeholder}
         style={{
           width: '100%',
-          padding: '0.5rem 0.7rem',
+          padding: '0.35rem 0.55rem',
           border: '1px solid var(--border-input)',
           borderRadius: 'var(--radius-md)',
           background: 'var(--bg-input)',
           color: 'var(--text-primary)',
-          fontSize: '0.84rem',
+          fontSize: '11px',
           fontFamily: 'var(--font-mono)',
           outline: 'none',
-          transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
           boxSizing: 'border-box',
+        }}
+      />
+    </div>
+  )
+}
+
+function ListField({ label, value, onChange, description }: FieldProps & {
+  value: string[]; onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <div style={{ marginBottom: '1px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{description}</div>}
+      </div>
+      <textarea
+        value={value.join('\n')}
+        onChange={e => onChange(e.target.value)}
+        rows={4}
+        style={{
+          width: '100%',
+          padding: '0.35rem 0.55rem',
+          border: '1px solid var(--border-input)',
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--bg-input)',
+          color: 'var(--text-primary)',
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          outline: 'none',
+          resize: 'vertical',
+          boxSizing: 'border-box',
+          lineHeight: 1.4,
         }}
       />
     </div>

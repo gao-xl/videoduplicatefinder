@@ -2,10 +2,14 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './contexts/ThemeProvider'
+import { I18nProvider } from './i18n/I18nProvider'
+import type { LanguageCode } from './i18n/i18n'
 import { MainLayout } from './components/Layout/MainLayout'
 import { LoginPage } from './pages/LoginPage'
 import { Spinner } from './components/shared/Spinner'
+import { WelcomeGuide } from './components/WelcomeGuide'
 import { checkAuth } from './api/auth'
+import { getSettings } from './api/settings'
 
 const ScanPage = lazy(() => import('./pages/ScanPage').then(m => ({ default: m.ScanPage })))
 const ResultsPage = lazy(() => import('./pages/ResultsPage').then(m => ({ default: m.ResultsPage })))
@@ -80,15 +84,66 @@ function AuthGuard({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const savedLang = localStorage.getItem('vdf-lang') as LanguageCode | null
+  const [showGuide, setShowGuide] = useState(false)
+  const [guideChecked, setGuideChecked] = useState(false)
+
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('vdf-has-seen-guide')
+    if (hasSeenGuide) {
+      setGuideChecked(true)
+      return
+    }
+
+    getSettings()
+      .then(settings => {
+        if (settings.showWelcomeGuide !== false) {
+          setShowGuide(true)
+        }
+        setGuideChecked(true)
+      })
+      .catch(() => {
+        setGuideChecked(true)
+      })
+  }, [])
+
+  const handleGuideComplete = () => {
+    localStorage.setItem('vdf-has-seen-guide', 'true')
+    setShowGuide(false)
+  }
+
+  if (!guideChecked) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        gap: '0.75rem',
+        color: 'var(--text-muted)',
+      }}>
+        <Spinner size={20} />
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
+        <I18nProvider initialLang={savedLang || 'zh-Hans'}>
+          <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={
               <AuthGuard>
-                <MainLayout />
+                {showGuide ? (
+                  <MainLayout>
+                    <WelcomeGuide onComplete={handleGuideComplete} />
+                  </MainLayout>
+                ) : (
+                  <MainLayout />
+                )}
               </AuthGuard>
             }>
               <Route path="/" element={<LazyLoader><ScanPage /></LazyLoader>} />
@@ -98,6 +153,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+        </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )

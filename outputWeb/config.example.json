@@ -1,0 +1,36 @@
+{
+  // Video Duplicate Finder Web UI Configuration
+  // Place this file in the same directory as VDF.Web.exe
+  // Environment variables take precedence over this file if set.
+  "web": {
+    // Web UI login password
+    // Can also be set via VDF_WEB_PASSWORD environment variable
+    "password": "",
+
+    // Enable/disable authentication (default: true if password is set)
+    // Set to false to allow anonymous access
+    // Can also be set via VDF_WEB_AUTH=false environment variable
+    "authEnabled": true,
+
+    // API keys for programmatic access (alternative to password login)
+    // Can also be set via VDF_API_KEYS env var (comma-separated)
+    "apiKeys": [],
+
+    // Base path for reverse proxy support (e.g. /vdf)
+    // Can also be set via VDF_BASE_PATH environment variable
+    "basePath": "",
+
+    // CORS allowed origins (default: same-origin only)
+    // Can also be set via VDF_CORS_ORIGINS env var (comma-separated)
+    "corsOrigins": [],
+
+    // HTTPS/TLS certificate paths (for secure connections)
+    // Can also be set via VDF_TLS_CERT and VDF_TLS_KEY env vars
+    "tlsCert": "",
+    "tlsKey": "",
+
+    // HTTP server port (default: 5000)
+    // Can also be set via VDF_PORT environment variable
+    "port": 5000
+  }
+}

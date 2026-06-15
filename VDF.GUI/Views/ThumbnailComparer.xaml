@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="VDF.GUI.Views.ThumbnailComparer"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -45,18 +45,18 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.section">
-            <Setter Property="Background" Value="{actipro:ThemeResource Container2BackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{actipro:ThemeResource Container2BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
         </Style>
         <Style Selector="Border.badge-a">
-            <Setter Property="Background" Value="{actipro:ThemeResource ControlBackgroundBrushSolidAccent}" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
             <Setter Property="CornerRadius" Value="3" />
             <Setter Property="Padding" Value="6,1" />
         </Style>
         <Style Selector="Border.badge-b">
-            <Setter Property="Background" Value="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}" />
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
             <Setter Property="CornerRadius" Value="3" />
             <Setter Property="Padding" Value="6,1" />
         </Style>
@@ -79,7 +79,7 @@
             <Setter Property="FontSize" Value="11" />
         </Style>
         <Style Selector="Border.hint-bar">
-            <Setter Property="Background" Value="{actipro:ThemeResource Container2BackgroundBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="8,3" />
             <Setter Property="HorizontalAlignment" Value="Center" />
@@ -88,7 +88,7 @@
             <Setter Property="Opacity" Value="0.85" />
         </Style>
     </Window.Styles>
-    <Border BorderBrush="{DynamicResource SystemControlBackgroundChromeMediumBrush}" BorderThickness="2">
+    <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="2">
         <Grid ColumnDefinitions="200,1,*" RowDefinitions="Auto, *">
             <controls:ExperimentalAcrylicBorder
                 x:Name="ExperimentalAcrylicBorderBackgroundWhite"
@@ -222,7 +222,7 @@
                 Grid.Column="1"
                 Width="1"
                 Margin="0,16"
-                Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                Background="{DynamicResource BorderSubtleBrush}" />
 
             <!-- Right panel: Viewer -->
             <Grid
@@ -236,8 +236,8 @@
                     Grid.Row="0"
                     Margin="0,0,8,0"
                     Padding="10,6"
-                    Background="{actipro:ThemeResource ControlBackgroundBrushEmphasizedDanger}"
-                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
+                    Background="{DynamicResource DangerBrush}"
+                    BorderBrush="{DynamicResource BorderDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="6"
                     IsVisible="{Binding IsMessageVisible}">
@@ -292,7 +292,7 @@
                                 </ComboBox>
                             </StackPanel>
 
-                            <Border Width="1" Height="22" Margin="2,0" Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                            <Border Width="1" Height="22" Margin="2,0" Background="{DynamicResource BorderSubtleBrush}" />
 
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.Mode]}" />
@@ -307,7 +307,7 @@
                         <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
                             <Button Classes="tool-btn" Command="{Binding FitToViewCommand}" Content="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.Fit]}" ToolTip.Tip="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.FitTooltip]}" />
                             <Button Classes="tool-btn" Command="{Binding ResetZoomCommand}" Content="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.ZoomReset]}" />
-                            <Border Width="1" Height="20" Margin="2,0" Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                            <Border Width="1" Height="20" Margin="2,0" Background="{DynamicResource BorderSubtleBrush}" />
                             <Button Classes="tool-btn" Command="{Binding ZoomOutCommand}" Content="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.ZoomOut]}" />
                             <Button Classes="tool-btn" Command="{Binding ZoomInCommand}" Content="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.ZoomIn]}" />
                         </StackPanel>
@@ -348,7 +348,7 @@
                             </TextBlock.Text>
                         </TextBlock>
 
-                            <Border Width="1" Height="22" Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                            <Border Width="1" Height="22" Background="{DynamicResource BorderSubtleBrush}" />
                         </StackPanel>
 
                         <!-- Per-video step A -->
@@ -359,14 +359,14 @@
                         <Button Classes="offset-btn" Command="{Binding StepAMinusCommand}">
                             <TextBlock FontSize="10" Text="&#9664;" />
                         </Button>
-                        <Border MinWidth="36" Background="{actipro:ThemeResource Container1BackgroundBrush}" BorderBrush="{actipro:ThemeResource Container1BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                        <Border MinWidth="36" Background="{DynamicResource SurfacePrimaryBrush}" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Text="{Binding StepA}" />
                         </Border>
                         <Button Classes="offset-btn" Command="{Binding StepAPlusCommand}">
                             <TextBlock FontSize="10" Text="&#9654;" />
                         </Button>
 
-                        <Border Width="1" Height="22" Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                        <Border Width="1" Height="22" Background="{DynamicResource BorderSubtleBrush}" />
 
                         <!-- Per-video step B -->
                         <Border Classes="badge-b">
@@ -376,14 +376,14 @@
                         <Button Classes="offset-btn" Command="{Binding StepBMinusCommand}">
                             <TextBlock FontSize="10" Text="&#9664;" />
                         </Button>
-                        <Border MinWidth="36" Background="{actipro:ThemeResource Container1BackgroundBrush}" BorderBrush="{actipro:ThemeResource Container1BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
+                        <Border MinWidth="36" Background="{DynamicResource SurfacePrimaryBrush}" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="3" Padding="4,2">
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Text="{Binding StepB}" />
                         </Border>
                         <Button Classes="offset-btn" Command="{Binding StepBPlusCommand}">
                             <TextBlock FontSize="10" Text="&#9654;" />
                         </Button>
 
-                        <Border Width="1" Height="22" Background="{DynamicResource SystemControlHighlightBaseLowBrush}" />
+                        <Border Width="1" Height="22" Background="{DynamicResource BorderSubtleBrush}" />
                         <Button Classes="offset-btn" Command="{Binding ResetStepsCommand}" Content="{Binding Source={x:Static app:App.Lang}, Path=[ThumbnailComparerDialog.ResetOffsets]}" FontSize="11" />
                     </StackPanel>
                 </Border>
@@ -392,8 +392,8 @@
                 <Border
                     Grid.Row="3"
                     Margin="0,6,8,0"
-                    Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
+                    Background="{DynamicResource SurfacePrimaryBrush}"
+                    BorderBrush="{DynamicResource BorderDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="6"
                     ClipToBounds="True">
@@ -424,7 +424,7 @@
                                     <Border
                                         Grid.Column="1"
                                         Width="2"
-                                        Background="{DynamicResource SystemControlHighlightBaseLowBrush}"
+                                        Background="{DynamicResource BorderSubtleBrush}"
                                         Opacity="0.4" />
                                     <Grid Grid.Column="2">
                                         <Image Source="{Binding ImageB}" Stretch="Uniform" />

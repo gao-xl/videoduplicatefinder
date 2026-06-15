@@ -51,39 +51,51 @@ namespace VDF.Web.Services {
 
 		public bool AuthEnabled => _authEnabled;
 
-		public AuthService(ILogger<AuthService> logger, JwtService jwtService) {
+		public AuthService(ILogger<AuthService> logger, JwtService jwtService, WebConfigService config) {
 			_logger = logger;
 			_jwtService = jwtService;
 
-			// Allow disabling auth entirely
+			// Allow disabling auth entirely via config.json or env var
 			var authEnv = Environment.GetEnvironmentVariable("VDF_WEB_AUTH");
-			if (string.Equals(authEnv, "false", StringComparison.OrdinalIgnoreCase)) {
+			if (!string.Equals(authEnv, "false", StringComparison.OrdinalIgnoreCase) && config.AuthEnabled)
+				_authEnabled = true;
+			else
 				_authEnabled = false;
+
+			if (!_authEnabled) {
 				_password = string.Empty;
 				_credentialsPath = string.Empty;
 			}
 			else {
-				_authEnabled = true;
 				_credentialsPath = GetCredentialsPath();
 
-				// Priority: env var > saved file > generate new
+				// Priority: config.json > env var > saved file > generate new
 				var envPassword = Environment.GetEnvironmentVariable("VDF_WEB_PASSWORD");
-				if (!string.IsNullOrWhiteSpace(envPassword))
+				var configPassword = config.Password;
+				if (!string.IsNullOrWhiteSpace(configPassword))
+					_password = configPassword;
+				else if (!string.IsNullOrWhiteSpace(envPassword))
 					_password = envPassword;
 				else
 					_password = LoadOrGeneratePassword();
 
-				PrintPasswordBanner();
-			}
-
-			// Load API keys from environment variable
-			var apiKeysEnv = Environment.GetEnvironmentVariable("VDF_API_KEYS");
-			if (!string.IsNullOrWhiteSpace(apiKeysEnv)) {
-				foreach (var key in apiKeysEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
-					_apiKeys.Add(key);
+				// Load API keys from config.json or env var
+				var keys = config.ApiKeys;
+				if (keys.Count == 0) {
+					var apiKeysEnv = Environment.GetEnvironmentVariable("VDF_API_KEYS");
+					if (!string.IsNullOrWhiteSpace(apiKeysEnv)) {
+						foreach (var key in apiKeysEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+							_apiKeys.Add(key);
+					}
+				}
+				else {
+					foreach (var key in keys)
+						_apiKeys.Add(key);
 				}
 				if (_apiKeys.Count > 0)
-					_logger.LogInformation("Loaded {Count} API key(s) from VDF_API_KEYS", _apiKeys.Count);
+					_logger.LogInformation("Loaded {Count} API key(s)", _apiKeys.Count);
+
+				PrintPasswordBanner();
 			}
 		}
 
@@ -250,21 +262,13 @@ namespace VDF.Web.Services {
 		}
 
 		void PrintPasswordBanner() {
-			// Log via ILogger so it shows up in VS Code Debug Console / structured logging
-			_logger.LogInformation("Web UI password has been generated");
+			_logger.LogInformation("Web UI password is ready.");
 
-			var envOverride = Environment.GetEnvironmentVariable("VDF_WEB_PASSWORD");
-			if (!string.IsNullOrWhiteSpace(envOverride))
-				_logger.LogInformation("  (using password from VDF_WEB_PASSWORD environment variable)");
-			else
-				_logger.LogInformation("  Tip: Set VDF_WEB_PASSWORD environment variable to use your own password.");
-
-			_logger.LogInformation("  Set VDF_WEB_AUTH=false to disable authentication entirely.");
-
-			// Also write to stdout for Docker users (docker logs)
-			Console.WriteLine();
-			Console.WriteLine("Web UI password has been generated");
-			Console.WriteLine();
+			var configSource = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VDF_CONFIG_PATH"))
+				? "VDF_CONFIG_PATH/config.json"
+				: "config.json in app directory";
+			_logger.LogInformation("  Password loaded from {Source} or VDF_WEB_PASSWORD env var.", configSource);
+			_logger.LogInformation("  Set 'authEnabled: false' in config.json or VDF_WEB_AUTH=false to disable authentication.");
 		}
 
 		static string GeneratePassword() {

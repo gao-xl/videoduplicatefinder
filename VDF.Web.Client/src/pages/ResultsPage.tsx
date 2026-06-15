@@ -229,25 +229,6 @@ export function ResultsPage() {
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease' }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '1.25rem',
-      }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.75rem',
-          fontWeight: 700,
-          margin: 0,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.02em',
-        }}>
-          Results
-        </h1>
-      </div>
-
       {/* Search & Stats Bar */}
       <div style={{
         background: 'var(--bg-surface)',

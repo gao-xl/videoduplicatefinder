@@ -27,7 +27,7 @@ using ReactiveUI;
 namespace VDF.GUI {
 	public class LanguageService : ReactiveObject {
 		private Dictionary<string, string> _translations = new();
-		private string _currentLanguage = "en";
+		private string _currentLanguage = "zh-Hans";
 
 		private IReadOnlyList<string>? _availableLanguages;
 		public IReadOnlyList<string> AvailableLanguages => _availableLanguages ??= LoadAvailableLanguages();
