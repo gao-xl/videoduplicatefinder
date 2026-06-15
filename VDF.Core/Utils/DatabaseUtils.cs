@@ -218,6 +218,19 @@ namespace VDF.Core.Utils {
 			}
 		}
 
+		internal static void SaveDatabaseIncremental() {
+			if (!UseSqlite) {
+				SaveDatabase();
+				return;
+			}
+			int saved = SqliteDb.SaveDirtyFileEntries(Database);
+			foreach (var entry in Database) {
+				entry.dirty = false;
+			}
+			if (saved > 0)
+				Logger.Instance.Info($"Incremental database save: {saved} dirty entries saved.");
+		}
+
 		static void SaveDatabaseLegacy() {
 			Logger.Instance.Info($"Save scanned files to disk ({Database.Count:N0} files).");
 

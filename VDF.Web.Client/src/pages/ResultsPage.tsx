@@ -193,9 +193,10 @@ export function ResultsPage() {
       if ((e.key === 'x' || e.key === 'X') && focusedGroupIdx >= 0 && focusedGroupIdx < groups.length) {
         e.preventDefault()
         const group = groups[focusedGroupIdx]
-        if (group.items.length < 2) return
+        if (!group || group.items.length < 2) return
         // Pick the item with the highest bitrate as the keeper
-        const best = group.items.reduce((a, b) => b.bitRateKbs > a.bitRateKbs ? b : a, group.items[0])
+        const best = group.items.reduce((a, b) => b.bitRateKbs > a.bitRateKbs ? b : a, group.items[0]!)
+        if (!best) return
         const newSel = new Set(selectedPaths)
         group.items.forEach(item => {
           if (item.path !== best.path) newSel.add(item.path)
@@ -207,12 +208,14 @@ export function ResultsPage() {
       if (/^[1-9]$/.test(e.key) && focusedGroupIdx >= 0 && focusedGroupIdx < groups.length) {
         const idx = parseInt(e.key) - 1
         const group = groups[focusedGroupIdx]
-        if (idx < group.items.length) {
+        if (group && idx < group.items.length) {
           const item = group.items[idx]
-          const newSel = new Set(selectedPaths)
-          if (newSel.has(item.path)) newSel.delete(item.path)
-          else newSel.add(item.path)
-          setSelectedPaths(newSel)
+          if (item) {
+            const newSel = new Set(selectedPaths)
+            if (newSel.has(item.path)) newSel.delete(item.path)
+            else newSel.add(item.path)
+            setSelectedPaths(newSel)
+          }
         }
         return
       }

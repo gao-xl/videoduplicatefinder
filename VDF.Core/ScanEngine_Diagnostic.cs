@@ -331,7 +331,7 @@ namespace VDF.Core {
 			// Flipped comparison, same as TryCheckDuplicate
 			bool flipped = false;
 			if (Settings.CompareHorizontallyFlipped) {
-				byte[]?[] flippedGray = CreateFlippedGrayBytes(a);
+				byte[]?[] flippedGray = CreateFlippedGrayBytes(a, new ConcurrentBag<byte[]>());
 				ulong?[]? flippedPHashes = usePHash ? CreateFlippedPHashes(flippedGray, usePHash) : null;
 				if (CheckIfDuplicate(a, flippedGray, flippedPHashes, b, out float flippedDifference)) {
 					sb.AppendLine($"Horizontally flipped similarity: {FormatSimilarity(1f - flippedDifference)}");

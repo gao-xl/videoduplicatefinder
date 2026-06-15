@@ -161,11 +161,12 @@ namespace VDF.Core.Utils {
 		};
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static byte[] FlipGrayScale(byte[] img) {
+		public static byte[] FlipGrayScale(byte[] img, byte[]? dst = null) {
 			Debug.Assert((int)Math.Sqrt(img.Length) * (int)Math.Sqrt(img.Length) == img.Length, "Invalid img.Length");
 
 			int side = (int)Math.Sqrt(img.Length);
-			byte[] dst = new byte[img.Length];
+			if (dst == null || dst.Length != img.Length)
+				dst = new byte[img.Length];
 
 			if (Avx2.IsSupported && (side % 32) == 0) {
 				// line by line: two 16-byte shuffles per 32-byte block + swap of halves

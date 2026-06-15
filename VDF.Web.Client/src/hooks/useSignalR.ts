@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr'
+import { getToken } from '../api/client'
 import type { ScanProgressResponse } from '../api/scan'
 
 interface UseSignalRReturn {
@@ -17,10 +18,9 @@ export function useSignalR(): UseSignalRReturn {
   const [fileOpProgress, setFileOpProgress] = useState<{ current: number; max: number; verb: string } | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('vdf-access-token')
     const connection = new HubConnectionBuilder()
       .withUrl('/scanhub', {
-        accessTokenFactory: () => token ?? '',
+        accessTokenFactory: () => getToken() ?? '',
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
       .configureLogging(LogLevel.Warning)

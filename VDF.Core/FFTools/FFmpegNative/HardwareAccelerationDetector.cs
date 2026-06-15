@@ -112,7 +112,7 @@ namespace VDF.Core.FFTools.FFmpegNative {
 		/// <see cref="DetectAvailableDevices"/> will re-probe.
 		/// </summary>
 		public static void InvalidateCache() {
-			_cachedDevices = null;
+			_cachedDevices = CreateLazy();
 		}
 
 		static bool TryCreateDevice(AVHWDeviceType deviceType) {

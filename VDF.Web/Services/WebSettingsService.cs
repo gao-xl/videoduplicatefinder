@@ -21,6 +21,12 @@ using VDF.Core.FFTools;
 
 namespace VDF.Web.Services {
 	public sealed class WebSettingsService {
+		readonly ILogger<WebSettingsService> _logger;
+
+		public WebSettingsService(ILogger<WebSettingsService> logger) {
+			_logger = logger;
+		}
+
 		/// <summary>JSON-serializable mirror of the settings relevant to VDF.Web.</summary>
 		public sealed class Dto {
 			public List<string> IncludeList { get; set; } = new();
@@ -153,7 +159,7 @@ namespace VDF.Web.Services {
 				ThumbnailJpegQuality = Math.Clamp(dto.ThumbnailJpegQuality, 10, 95);
 				return true;
 			}
-			catch { return false; }
+			catch (Exception ex) { _logger.LogWarning(ex, "Failed to load web settings file"); return false; }
 		}
 
 		public bool Save(Settings s) {
@@ -212,7 +218,7 @@ namespace VDF.Web.Services {
 				File.WriteAllText(SettingsPath, JsonSerializer.Serialize(dto, WebJsonContext.Default.Dto));
 				return true;
 			}
-			catch { return false; }
+			catch (Exception ex) { _logger.LogError(ex, "Failed to save web settings file"); return false; }
 		}
 	}
 }

@@ -30,6 +30,7 @@ namespace VDF.Web.Services {
 		public int Failed;
 		public long FreedBytes;
 		public List<string> Errors { get; } = new();
+		public List<string> Warnings { get; } = new();
 	}
 
 	public class ScanProgressArgs {
@@ -62,8 +63,13 @@ namespace VDF.Web.Services {
 		public Settings Settings => _engine.Settings;
 
 		/// <summary>Caches for the thumbnail endpoints — cleared whenever the results change wholesale.</summary>
-		public System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> HqThumbCache { get; } = new();
-		public System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> FullThumbCache { get; } = new();
+		public System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<byte[]>> HqThumbCache { get; } = new();
+		public System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<byte[]>> FullThumbCache { get; } = new();
+
+		/// <summary>Lock objects used to serialize cache eviction so that only one thread
+		/// clears and re-adds at a time, preventing the stampede race condition.</summary>
+		public object HqThumbCacheLock { get; } = new();
+		public object FullThumbCacheLock { get; } = new();
 
 		void ClearThumbnailCaches() {
 			HqThumbCache.Clear();
@@ -121,13 +127,27 @@ namespace VDF.Web.Services {
 			_engine.Duplicates.Clear();
 			ClearThumbnailCaches();
 			try {
-				_engine.StartSearch();
+				_ = RunSearchWithAsyncErrorHandling();
 			}
 			catch (Exception ex) {
 				SetError(ex);
 				return;
 			}
 			Notify();
+		}
+
+		/// <summary>
+		/// Wraps StartSearch() fire-and-forget so that exceptions thrown after the
+		/// first await are caught and routed to SetError instead of crashing the process
+		/// (which is what happens with unobserved Task exceptions from async void).
+		/// </summary>
+		async Task RunSearchWithAsyncErrorHandling() {
+			try {
+				await _engine.StartSearch();
+			}
+			catch (Exception ex) {
+				SetError(ex);
+			}
 		}
 
 		/// <summary>Called from global exception handlers to surface post-await async void exceptions.</summary>
@@ -252,13 +272,22 @@ namespace VDF.Web.Services {
 								// The batch ran but this file is still there.
 								throw new IOException("the shell did not move the file to the recycle bin");
 							}
-							else {
-								// System trash, falling back to permanent delete (e.g.
-								// cross-filesystem files where trashing means a full copy).
-								if (!FileUtils.MoveToTrash(item.Path))
-									File.Delete(item.Path);
-								result.FreedBytes += Math.Max(0, item.SizeLong);
+						else {
+							// System trash, falling back to permanent delete (e.g.
+							// cross-filesystem files where trashing means a full copy).
+							if (!FileUtils.MoveToTrash(item.Path)) {
+								// Warn user that file will be permanently deleted (not trashed)
+								string warning = $"File on different filesystem — will be permanently deleted instead of moved to trash: {Path.GetFileName(item.Path)}";
+								lock (result.Warnings) {
+									if (result.Warnings.Count < 5)
+										result.Warnings.Add(warning);
+									else if (result.Warnings.Count == 5)
+										result.Warnings.Add($"... and {list.Count - 5} more files on different filesystems");
+								}
+								File.Delete(item.Path);
 							}
+							result.FreedBytes += Math.Max(0, item.SizeLong);
+						}
 							_engine.Duplicates.Remove(item);
 							// Path-only entry — FileEntry(string) stats the file and throws once it's gone.
 							ScanEngine.RemoveFromDatabase(new FileEntry { Path = item.Path });
@@ -352,19 +381,30 @@ namespace VDF.Web.Services {
 							if (!File.Exists(item.Path)) {
 								// Already gone — still remove the entry and database record.
 							}
-							else {
-								keeperByGroup.TryGetValue(item.GroupId, out var keeper);
-								if (keeper == null)
-									throw new IOException("no unselected file is left in this group to link to");
-								long size = Math.Max(0, item.SizeLong);
-								// The link target path must be free before the link can be created.
-								File.Delete(item.Path);
+						else {
+							keeperByGroup.TryGetValue(item.GroupId, out var keeper);
+							if (keeper == null)
+								throw new IOException("no unselected file is left in this group to link to");
+							long size = Math.Max(0, item.SizeLong);
+							// Create link to a temporary path first, then delete original, then rename.
+							// This ensures the original file is not lost if link creation fails.
+							string tempPath = item.Path + ".vdf_link_tmp";
+							try {
 								if (hardLinks)
-									HardLinkUtils.CreateHardLink(item.Path, keeper.Path);
+									HardLinkUtils.CreateHardLink(tempPath, keeper.Path);
 								else
-									File.CreateSymbolicLink(item.Path, keeper.Path);
-								result.FreedBytes += size;
+									File.CreateSymbolicLink(tempPath, keeper.Path);
+								// Link created successfully — now safe to delete original and rename
+								File.Delete(item.Path);
+								File.Move(tempPath, item.Path);
 							}
+							catch {
+								// Cleanup temp file if it was created
+								try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+								throw;
+							}
+							result.FreedBytes += size;
+						}
 							_engine.Duplicates.Remove(item);
 							ScanEngine.RemoveFromDatabase(new FileEntry { Path = item.Path });
 							result.Done++;

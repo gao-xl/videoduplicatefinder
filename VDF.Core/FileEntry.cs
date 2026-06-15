@@ -12,8 +12,8 @@
 //     You should have received a copy of the GNU Affero General Public License
 //     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
 // */
-//
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -61,7 +61,7 @@ namespace VDF.Core {
 		[MemoryPackOrder(1)]
 		public string Folder;
 		[MemoryPackOrder(2)]
-		public Dictionary<double, byte[]?> grayBytes = new();
+		public ConcurrentDictionary<double, byte[]?> grayBytes = new();
 		[MemoryPackOrder(3)]
 		public MediaInfo? mediaInfo;
 		[MemoryPackOrder(4)]
@@ -73,7 +73,7 @@ namespace VDF.Core {
 		[MemoryPackOrder(7)]
 		public long FileSize;
 		[MemoryPackOrder(8)]
-		public Dictionary<double, ulong?> PHashes = new();
+		public ConcurrentDictionary<double, ulong?> PHashes = new();
 		/// <summary>
 		/// Aggregated audio fingerprint: one <c>uint</c> per second of audio.
 		/// <c>null</c> = not yet extracted; empty array = file has no audio track.
@@ -109,6 +109,10 @@ namespace VDF.Core {
 		internal ulong?[]? comparePHashes;
 		[MemoryPackIgnore]
 		internal int compareIndex;
+		[MemoryPackIgnore]
+		internal byte[]?[]? compareFlippedGray;
+		[MemoryPackIgnore]
+		internal ulong?[]? compareFlippedPHashes;
 
 		[MemoryPackIgnore]
 		internal bool IsImage {

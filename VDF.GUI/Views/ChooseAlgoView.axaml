@@ -14,6 +14,7 @@
 		SizeToContent="WidthAndHeight"
 		Padding="20"
 		Title="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Title]}">
+	<Border Classes="dialog-root">
 	<Grid RowDefinitions="*,Auto" RowSpacing="12">
 		<TabControl SelectedIndex="{Binding StepIndex, Mode=TwoWay}">
 			<TabItem>
@@ -23,12 +24,7 @@
 						<TextBlock Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Step.DatabaseSize]}" />
 					</StackPanel>
 				</TabItem.Header>
-				<Border
-				Padding="12"
-				Background="{actipro:ThemeResource Container1BackgroundBrush}"
-				BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-				BorderThickness="1"
-				CornerRadius="6">
+				<Border Classes="settings-panel">
 					<StackPanel>
 						<TextBlock Margin="0,5" TextWrapping="Wrap" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Description]}" />
 						<RadioButton
@@ -38,6 +34,7 @@
 						<TextBlock
 						Margin="30,5"
 						Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Option16Details]}"
+						Foreground="{DynamicResource TextSecondaryBrush}"
 						TextWrapping="Wrap" />
 						<RadioButton
 						x:Name="Cb32x32"
@@ -46,6 +43,7 @@
 						<TextBlock
 						Margin="30,5"
 						Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Option32Details]}"
+						Foreground="{DynamicResource TextSecondaryBrush}"
 						TextWrapping="Wrap" />
 					</StackPanel>
 				</Border>
@@ -57,29 +55,23 @@
 						<TextBlock Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Step.Folders]}" />
 					</StackPanel>
 				</TabItem.Header>
-				<Border
-				Padding="12"
-				Background="{actipro:ThemeResource Container1BackgroundBrush}"
-				BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-				BorderThickness="1"
+				<Border Classes="settings-panel"
 				MinHeight="300"
-				MinWidth="600"
-				CornerRadius="6">
+				MinWidth="600">
 					<StackPanel Spacing="8">
-						<TextBlock FontWeight="SemiBold" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.FoldersTitle]}" />
+						<TextBlock Classes="section-title" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.FoldersTitle]}" />
 						<TextBlock
 						Foreground="{actipro:ThemeResource ControlBackgroundBrushSolidWarning}"
 						Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.FoldersHint]}"
 						TextWrapping="Wrap" />
 						<Grid RowDefinitions="Auto,*,Auto" RowSpacing="6" ColumnSpacing="8">
 							<StackPanel Grid.Row="0" Spacing="6" Orientation="Horizontal">
-								<Button Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Add]}" Click="AddFolder_Click" />
-								<Button Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Remove]}" Click="RemoveFolder_Click" />
+								<Button Classes="btn-ghost" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Add]}" Click="AddFolder_Click" />
+								<Button Classes="btn-ghost" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Remove]}" Click="RemoveFolder_Click" />
 							</StackPanel>
 							<ListBox
 							x:Name="ListboxOnboardingIncludes"
 							Grid.Row="1"
-							BorderThickness="1"
 							MinHeight="200"
 							ItemsSource="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=Includes}"
 							SelectionMode="Multiple" />
@@ -99,16 +91,11 @@
 						<TextBlock Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.Step.BasicSettings]}" />
 					</StackPanel>
 				</TabItem.Header>
-				<Border
-				Padding="12"
-				Background="{actipro:ThemeResource Container1BackgroundBrush}"
-				BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-				BorderThickness="1"
+				<Border Classes="settings-panel"
 				MinHeight="300"
-				MinWidth="600"
-				CornerRadius="6">
+				MinWidth="600">
 					<StackPanel Spacing="6">
-						<TextBlock FontWeight="SemiBold" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.BasicSettingsTitle]}" />
+						<TextBlock Classes="section-title" Text="{Binding Source={x:Static app:App.Lang}, Path=[ChooseAlgo.BasicSettingsTitle]}" />
 						<CheckBox
 						Content="{Binding Source={x:Static app:App.Lang}, Path=[MainWindow.Settings.IncludeSubDirectories]}"
 						IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=IncludeSubDirectories}" />
@@ -127,19 +114,16 @@
 		</TabControl>
 		<Border
 		Grid.Row="1"
-		Padding="10"
-		Background="{actipro:ThemeResource Container1BackgroundBrush}"
-		BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-		BorderThickness="1"
-		CornerRadius="6">
+		Classes="dialog-actions">
 			<Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-				<Button x:Name="ButtonBack" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Back]}" Click="Back_Click" />
+				<Button x:Name="ButtonBack" Classes="btn-ghost" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Back]}" Click="Back_Click" />
 				<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-					<Button x:Name="ButtonSkip" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Skip]}" Click="Skip_Click" />
-					<Button x:Name="ButtonNext" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Next]}" Click="Next_Click" />
-					<Button x:Name="ButtonFinish" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.OK]}" Click="Finish_Click" />
+					<Button x:Name="ButtonSkip" Classes="btn-ghost" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Skip]}" Click="Skip_Click" />
+					<Button x:Name="ButtonNext" Classes="btn-primary" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Next]}" Click="Next_Click" />
+					<Button x:Name="ButtonFinish" Classes="btn-primary" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.OK]}" Click="Finish_Click" />
 				</StackPanel>
 			</Grid>
 		</Border>
 	</Grid>
+	</Border>
 </Window>

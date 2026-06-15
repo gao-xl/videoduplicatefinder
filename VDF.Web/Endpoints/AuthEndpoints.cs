@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.RateLimiting;
 using VDF.Web.Models;
 using VDF.Web.Services;
 
@@ -49,7 +50,7 @@ static class AuthEndpoints {
 			}
 
 			return Results.Json(new { error = "invalid_credentials" }, statusCode: 401);
-		});
+		}).RequireRateLimiting("login");
 
 		// POST /api/auth/refresh — refresh access token (no auth required)
 		group.MapPost("/refresh", (RefreshRequest req, AuthService auth) => {
@@ -79,8 +80,14 @@ static class AuthEndpoints {
 				}
 			}
 
-			// Clear the auth cookie
-			ctx.Response.Cookies.Delete("vdf_auth");
+			// Revoke the refresh token so it can no longer be used
+			if (!string.IsNullOrEmpty(refreshToken))
+				auth.RevokeRefreshToken(refreshToken);
+
+			// Clear the auth cookie (match Secure flag so the browser actually deletes it)
+			ctx.Response.Cookies.Delete("vdf_auth", new CookieOptions {
+				Secure = ctx.Request.IsHttps,
+			});
 
 			return Results.Ok(new { logged_out = true });
 		});

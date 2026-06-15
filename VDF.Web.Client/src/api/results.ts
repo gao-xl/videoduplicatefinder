@@ -69,6 +69,7 @@ export interface FileOpResultDto {
   failed: number
   freedBytes: number
   errors: string[]
+  warnings: string[]
 }
 
 export interface AutoSelectResponse {

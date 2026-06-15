@@ -107,6 +107,7 @@ public sealed class FileOpResultDto {
 	public int Failed { get; set; }
 	public long FreedBytes { get; set; }
 	public List<string> Errors { get; set; } = new();
+	public List<string> Warnings { get; set; } = new();
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────

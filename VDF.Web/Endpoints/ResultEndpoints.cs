@@ -63,7 +63,7 @@ static class ResultEndpoints {
 		});
 
 		// DELETE /api/results/items — delete selected items from disk
-		group.MapDelete("/items", async (ScanService scan, DeleteItemsRequest req) => {
+		group.MapDelete("/items", async (ScanService scan, [FromBody] DeleteItemsRequest req) => {
 			if (scan.FileOpRunning)
 				return Results.Json(new { error = "file_op_in_progress" }, statusCode: 409);
 			var items = FindItems(scan, req.Paths);
@@ -98,7 +98,7 @@ static class ResultEndpoints {
 		});
 
 		// DELETE /api/results/remove — remove items from results list (no disk change)
-		group.MapDelete("/remove", (ScanService scan, RemoveItemsRequest req) => {
+		group.MapDelete("/remove", (ScanService scan, [FromBody] RemoveItemsRequest req) => {
 			var items = FindItems(scan, req.Paths);
 			if (items.Count == 0)
 				return Results.NotFound(new { error = "no_matching_items" });
@@ -232,5 +232,6 @@ static class ResultEndpoints {
 		Failed = result.Failed,
 		FreedBytes = result.FreedBytes,
 		Errors = result.Errors,
+		Warnings = result.Warnings,
 	};
 }

@@ -331,7 +331,8 @@ export function LoginPage() {
             fontFamily: 'var(--font-sans)',
             opacity: 0.7,
           }}>
-            Set via <code style={{
+            Password was printed to console when the app started.<br />
+            Docker users: run <code style={{
               background: 'rgba(14,165,233,0.08)',
               padding: '0.1rem 0.4rem',
               borderRadius: 'var(--radius-sm)',
@@ -339,7 +340,16 @@ export function LoginPage() {
               color: 'var(--text-muted)',
               fontFamily: 'var(--font-mono)',
               border: '1px solid rgba(14,165,233,0.1)',
-            }}>VDF_WEB_PASSWORD</code> env var
+            }}>docker logs vdf</code> to see it.<br />
+            Set your own password via <code style={{
+              background: 'rgba(14,165,233,0.08)',
+              padding: '0.1rem 0.4rem',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.68rem',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-mono)',
+              border: '1px solid rgba(14,165,233,0.1)',
+            }}>VDF_WEB_PASSWORD</code> env var.
           </p>
         </div>
       </div>

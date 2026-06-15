@@ -28,13 +28,21 @@ static class ThumbnailEndpoints {
 
 			string cacheKey = $"{path}|{position.TotalSeconds:F2}|{width}|{quality}";
 
-			if (!scan.HqThumbCache.TryGetValue(cacheKey, out var jpeg)) {
-				jpeg = await Task.Run(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
-				if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-				if (scan.HqThumbCache.Count >= 4096)
-					scan.HqThumbCache.Clear();
-				scan.HqThumbCache.TryAdd(cacheKey, jpeg);
+			var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
+			if (scan.HqThumbCache.TryAdd(cacheKey, lazy)) {
+				// We added a new entry — check size and evict if needed
+				if (scan.HqThumbCache.Count > 4096) {
+					lock (scan.HqThumbCacheLock) {
+						if (scan.HqThumbCache.Count > 4096) {
+							scan.HqThumbCache.Clear();
+							scan.HqThumbCache.TryAdd(cacheKey, lazy);
+						}
+					}
+				}
 			}
+			// Use the existing or newly-added Lazy — only one thread actually runs the delegate
+			var jpeg = await Task.Run(() => scan.HqThumbCache[cacheKey].Value);
+			if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 			ctx.Response.ContentType = "image/jpeg";
 			ctx.Response.Headers.CacheControl = "public, max-age=3600";
@@ -56,13 +64,21 @@ static class ThumbnailEndpoints {
 
 			string cacheKey = $"{path}|{position.TotalSeconds:F2}|full";
 
-			if (!scan.FullThumbCache.TryGetValue(cacheKey, out var jpeg)) {
-				jpeg = await Task.Run(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
-				if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-				if (scan.FullThumbCache.Count >= 64)
-					scan.FullThumbCache.Clear();
-				scan.FullThumbCache.TryAdd(cacheKey, jpeg);
+			var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
+			if (scan.FullThumbCache.TryAdd(cacheKey, lazy)) {
+				// We added a new entry — check size and evict if needed
+				if (scan.FullThumbCache.Count > 64) {
+					lock (scan.FullThumbCacheLock) {
+						if (scan.FullThumbCache.Count > 64) {
+							scan.FullThumbCache.Clear();
+							scan.FullThumbCache.TryAdd(cacheKey, lazy);
+						}
+					}
+				}
 			}
+			// Use the existing or newly-added Lazy — only one thread actually runs the delegate
+			var jpeg = await Task.Run(() => scan.FullThumbCache[cacheKey].Value);
+			if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 			ctx.Response.ContentType = "image/jpeg";
 			ctx.Response.Headers.CacheControl = "public, max-age=3600";

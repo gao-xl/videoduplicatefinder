@@ -13,6 +13,7 @@
 //     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
 // */
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -31,15 +32,18 @@ namespace VDF.Web.Services {
 			public string? Password { get; set; }
 		}
 
+		private record RefreshTokenEntry(DateTime CreatedAt, DateTime LastUsedAt);
+
 		const string CookieName = "vdf_auth";
 		const int TokenExpirationDays = 30;
 		static readonly TimeSpan CookieMaxAge = TimeSpan.FromDays(TokenExpirationDays);
 		static readonly TimeSpan AccessTokenExpiry = TimeSpan.FromMinutes(15);
-		static readonly TimeSpan RefreshTokenExpiry = TimeSpan.FromDays(30);
+		static readonly TimeSpan RefreshTokenTtl = TimeSpan.FromDays(7);
+		const int MaxSessionsPerUser = 5;
 
 		readonly string _password;
 		readonly bool _authEnabled;
-		readonly HashSet<string> _validTokens = new();
+		readonly ConcurrentDictionary<string, RefreshTokenEntry> _validTokens = new(StringComparer.Ordinal);
 		readonly HashSet<string> _apiKeys = new(StringComparer.Ordinal);
 		readonly string _credentialsPath;
 		readonly ILogger<AuthService> _logger;
@@ -105,29 +109,48 @@ namespace VDF.Web.Services {
 		}
 
 		/// <summary>
-		/// Generates a random refresh token (30-day expiry), stored in the valid tokens set.
+		/// Generates a random refresh token, stored with creation and last-used timestamps.
+		/// Enforces max session limit by evicting the oldest entry.
 		/// </summary>
 		public string GenerateRefreshToken() {
 			var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-			lock (_validTokens)
-				_validTokens.Add(token);
+			var now = DateTime.UtcNow;
+			_validTokens[token] = new RefreshTokenEntry(now, now);
+
+			// Enforce max sessions: remove oldest entry if over limit
+			if (_validTokens.Count > MaxSessionsPerUser) {
+				var oldest = _validTokens.OrderBy(kvp => kvp.Value.CreatedAt).First();
+				_validTokens.TryRemove(oldest.Key, out _);
+			}
+
 			return token;
 		}
 
 		/// <summary>
-		/// Validates whether a refresh token is in the valid tokens set.
+		/// Validates whether a refresh token exists and has not expired.
+		/// Updates LastUsedAt on successful validation.
 		/// </summary>
 		public bool ValidateRefreshToken(string token) {
 			if (string.IsNullOrEmpty(token)) return false;
-			lock (_validTokens)
-				return _validTokens.Contains(token);
+			if (!_validTokens.TryGetValue(token, out var entry)) return false;
+
+			if (DateTime.UtcNow - entry.LastUsedAt > RefreshTokenTtl) {
+				_validTokens.TryRemove(token, out _);
+				return false;
+			}
+
+			// Update last used timestamp
+			_validTokens[token] = entry with { LastUsedAt = DateTime.UtcNow };
+			return true;
 		}
 
 		/// <summary>
 		/// Validates a refresh token and issues a new access token.
 		/// Returns null if the refresh token is invalid.
+		/// Performs expired token cleanup on each call.
 		/// </summary>
 		public string? RefreshAccessToken(string refreshToken) {
+			CleanupExpiredTokens();
 			if (!ValidateRefreshToken(refreshToken))
 				return null;
 			return GenerateAccessToken();
@@ -137,15 +160,42 @@ namespace VDF.Web.Services {
 
 		public string IssueToken() {
 			var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-			lock (_validTokens)
-				_validTokens.Add(token);
+			var now = DateTime.UtcNow;
+			_validTokens[token] = new RefreshTokenEntry(now, now);
 			return token;
 		}
 
 		public bool ValidateToken(string? token) {
 			if (string.IsNullOrEmpty(token)) return false;
-			lock (_validTokens)
-				return _validTokens.Contains(token);
+			if (!_validTokens.TryGetValue(token, out var entry)) return false;
+
+			if (DateTime.UtcNow - entry.LastUsedAt > RefreshTokenTtl) {
+				_validTokens.TryRemove(token, out _);
+				return false;
+			}
+
+			// Update last used timestamp
+			_validTokens[token] = entry with { LastUsedAt = DateTime.UtcNow };
+			return true;
+		}
+
+		/// <summary>
+		/// Revokes a refresh token, removing it from the valid token collection.
+		/// </summary>
+		public void RevokeRefreshToken(string token) {
+			if (!string.IsNullOrEmpty(token))
+				_validTokens.TryRemove(token, out _);
+		}
+
+		/// <summary>
+		/// Removes all expired refresh tokens from the collection.
+		/// </summary>
+		public void CleanupExpiredTokens() {
+			var now = DateTime.UtcNow;
+			foreach (var kvp in _validTokens) {
+				if (now - kvp.Value.LastUsedAt > RefreshTokenTtl)
+					_validTokens.TryRemove(kvp.Key, out _);
+			}
 		}
 
 		public bool IsAuthenticated(HttpContext ctx) {
@@ -159,8 +209,14 @@ namespace VDF.Web.Services {
 		}
 
 		public void SetAuthCookie(HttpContext ctx, string token, bool persistent = true) {
+			var isHttps = ctx.Request.IsHttps;
+			if (!isHttps)
+				_logger.LogWarning("Auth cookie is being set over an insecure (HTTP) connection. " +
+					"Enable HTTPS to ensure cookies are transmitted securely.");
+
 			ctx.Response.Cookies.Append(CookieName, token, new CookieOptions {
 				HttpOnly = true,
+				Secure = isHttps,
 				SameSite = SameSiteMode.Strict,
 				MaxAge = persistent ? CookieMaxAge : null,
 				IsEssential = true,
@@ -175,7 +231,7 @@ namespace VDF.Web.Services {
 					if (!string.IsNullOrWhiteSpace(saved?.Password))
 						return saved.Password;
 				}
-				catch { }
+				catch (Exception ex) { _logger.LogWarning(ex, "Failed to load credentials file, generating new password"); }
 			}
 
 			// Generate new password
@@ -190,14 +246,12 @@ namespace VDF.Web.Services {
 				File.WriteAllText(_credentialsPath,
 					JsonSerializer.Serialize(new StoredCredentials { Password = password }, WebJsonContext.Default.StoredCredentials));
 			}
-			catch { }
+			catch (Exception ex) { _logger.LogError(ex, "Failed to save credentials file"); }
 		}
 
 		void PrintPasswordBanner() {
 			// Log via ILogger so it shows up in VS Code Debug Console / structured logging
-			_logger.LogInformation("============================================");
-			_logger.LogInformation("  Web UI password:  {Password}", _password);
-			_logger.LogInformation("============================================");
+			_logger.LogInformation("Web UI password has been generated");
 
 			var envOverride = Environment.GetEnvironmentVariable("VDF_WEB_PASSWORD");
 			if (!string.IsNullOrWhiteSpace(envOverride))
@@ -209,9 +263,7 @@ namespace VDF.Web.Services {
 
 			// Also write to stdout for Docker users (docker logs)
 			Console.WriteLine();
-			Console.WriteLine("============================================");
-			Console.WriteLine($"  Web UI password:  {_password}");
-			Console.WriteLine("============================================");
+			Console.WriteLine("Web UI password has been generated");
 			Console.WriteLine();
 		}
 

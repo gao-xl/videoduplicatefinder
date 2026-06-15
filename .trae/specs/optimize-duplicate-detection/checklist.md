@@ -1,0 +1,14 @@
+- [x] pHash LSH 索引构建与查询实现完成，替换 duration bucket 线性遍历
+- [x] LSH 索引查询结果与暴力搜索结果一致（无漏检）
+- [x] 多级预过滤瀑布流实现：pHash → duration → file size → resolution → 精确比较
+- [x] 每级预过滤失败时立即跳过，不执行后续检查
+- [x] 翻转灰度字节数组在每个条目上仅计算一次并缓存复用
+- [x] MergeDuplicate 使用 ConcurrentDictionary 或细粒度锁，消除全局锁争用
+- [x] 并行合并结果与串行结果等价
+- [x] 热路径临时 byte[] 使用 ArrayPool 租用/归还
+- [x] SplitDaisyChainGroups 使用惰性相似度计算和增量连接数更新
+- [x] 优化后剪枝结果与原算法一致
+- [x] UsePHashing=false 时仍可使用 pHash Hamming 快速预过滤
+- [x] pHash 数据不可用时透明回退到灰度比较
+- [x] 优化前后扫描结果完全一致
+- [x] 比较阶段耗时有可测量的改善

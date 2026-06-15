@@ -16,136 +16,137 @@
     d:DesignWidth="800"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
-    <Grid RowDefinitions="Auto,Auto,*,Auto">
-        <!--  Mode selector  -->
-        <StackPanel
-            Margin="10,10,0,0"
-            Orientation="Horizontal"
-            Spacing="16">
-            <RadioButton Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ModePrefix]}" IsChecked="{Binding IsModePrefix}" />
-            <RadioButton Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ModeRescan]}" IsChecked="{Binding IsModeRescan}" />
-        </StackPanel>
+    <Border Classes="dialog-root">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+            <!--  Mode selector  -->
+            <Border Classes="settings-panel" Margin="16,12,16,0">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <RadioButton Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ModePrefix]}" IsChecked="{Binding IsModePrefix}" />
+                    <RadioButton Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ModeRescan]}" IsChecked="{Binding IsModeRescan}" />
+                </StackPanel>
+            </Border>
 
-        <!--  Mode A  -->
-        <Grid
-            Grid.Row="1"
-            Margin="10,12,0,8"
-            IsVisible="{Binding IsModePrefix}"
-            RowDefinitions="Auto,Auto">
-            <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,*,Auto">
-                <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.From]}" />
-                <TextBox
-                    Grid.Column="1"
-                    Margin="8,0"
-                    Text="{Binding OldPrefix}" />
-                <Button
-                    Grid.Column="2"
-                    Command="{Binding BrowseOldPrefix}"
-                    Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.FolderPicker]}" />
-            </Grid>
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
-                <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.To]}" />
-                <TextBox
-                    Grid.Column="1"
-                    Margin="8,0"
-                    Text="{Binding NewPrefix}" />
-                <Button
-                    Grid.Column="2"
-                    Command="{Binding BrowseNewPrefix}"
-                    Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.FolderPicker]}" />
-            </Grid>
-        </Grid>
-
-        <!--  Mode B  -->
-        <Grid
-            Grid.Row="1"
-            Margin="10,12,0,8"
-            IsVisible="{Binding IsModeRescan}"
-            RowDefinitions="Auto,Auto,Auto">
-            <TextBlock FontWeight="Bold" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ScanFolders]}" />
+            <!--  Mode A  -->
             <Grid
                 Grid.Row="1"
-                Margin="0,6,0,12"
-                RowDefinitions="*,Auto,Auto">
-                <ListBox Height="100" ItemsSource="{Binding ScanRoots}" />
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <Button
+                Margin="16,12,16,8"
+                IsVisible="{Binding IsModePrefix}"
+                RowDefinitions="Auto,Auto">
+                <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Classes="field-label" VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.From]}" />
+                    <TextBox
+                        Grid.Column="1"
                         Margin="8,0"
-                        Command="{Binding AddScanRoot}"
-                        Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.AddEllipsis]}" />
-                    <Button Command="{Binding RemoveScanRoot}" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Remove]}" />
+                        Text="{Binding OldPrefix}" />
+                    <Button
+                        Grid.Column="2"
+                        Classes="btn-ghost"
+                        Command="{Binding BrowseOldPrefix}"
+                        Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.FolderPicker]}" />
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Classes="field-label" VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.To]}" />
+                    <TextBox
+                        Grid.Column="1"
+                        Margin="8,0"
+                        Text="{Binding NewPrefix}" />
+                    <Button
+                        Grid.Column="2"
+                        Classes="btn-ghost"
+                        Command="{Binding BrowseNewPrefix}"
+                        Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.FolderPicker]}" />
+                </Grid>
+            </Grid>
+
+            <!--  Mode B  -->
+            <Grid
+                Grid.Row="1"
+                Margin="16,12,16,8"
+                IsVisible="{Binding IsModeRescan}"
+                RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Classes="section-title" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.ScanFolders]}" />
+                <Grid
+                    Grid.Row="1"
+                    Margin="0,6,0,12"
+                    RowDefinitions="*,Auto,Auto">
+                    <ListBox Height="100" ItemsSource="{Binding ScanRoots}" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                        <Button
+                            Classes="btn-ghost"
+                            Command="{Binding AddScanRoot}"
+                            Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.AddEllipsis]}" />
+                        <Button Classes="btn-ghost" Command="{Binding RemoveScanRoot}" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Remove]}" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel
+                    Grid.Row="2"
+                    Orientation="Horizontal"
+                    Spacing="16">
+                    <TextBlock Classes="field-label" VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.MultipleCandidates]}" />
+                    <CheckBox Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckLastWriteTime]}" IsChecked="{Binding UseModifiedTime}" />
+                    <CheckBox Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckDuration]}" IsChecked="{Binding UseDuration}" />
                 </StackPanel>
             </Grid>
 
-            <StackPanel
+            <!--  Preview grid  -->
+            <DataGrid
                 Grid.Row="2"
-                Orientation="Horizontal"
-                Spacing="16">
-                <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.MultipleCandidates]}" />
-                <CheckBox Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckLastWriteTime]}" IsChecked="{Binding UseModifiedTime}" />
-                <CheckBox Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckDuration]}" IsChecked="{Binding UseDuration}" />
-            </StackPanel>
+                Margin="16,12,16,12"
+                CanUserResizeColumns="True"
+                ItemsSource="{Binding Preview}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="{Binding Source={x:Static app:App.Lang}, Path=[Apply]}">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:RelocateCandidate">
+                                <CheckBox IsChecked="{Binding Selected}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Width="2*" x:DataType="vm:RelocateCandidate" Binding="{Binding OldPath}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Path]}" IsReadOnly="True" />
+                    <DataGridTextColumn Width="2*" x:DataType="vm:RelocateCandidate" Binding="{Binding NewPath}" Header="{Binding Source={x:Static app:App.Lang}, Path=[NewPath]}" IsReadOnly="True" />
+                    <DataGridTextColumn Width="*" x:DataType="vm:RelocateCandidate" Binding="{Binding ConfidenceString}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Confidence]}" IsReadOnly="True" />
+                    <DataGridTextColumn Width="*" x:DataType="vm:RelocateCandidate" Binding="{Binding Note}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Note]}" IsReadOnly="True" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!--  Buttons  -->
+            <Border Grid.Row="3" Classes="dialog-actions">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <TextBlock Classes="section-hint" VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.NoteNoPath]}" />
+                    <Button Classes="btn-ghost" Command="{Binding CheckAllResults}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckAll]}" />
+                    <Button Classes="btn-ghost" Command="{Binding UncheckAllResults}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.UncheckAll]}" />
+                    <Button Classes="btn-ghost" Command="{Binding BuildPreview}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CreatePreview]}" />
+                    <Button
+                        Classes="btn-primary"
+                        Command="{Binding Apply}"
+                        Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Apply]}"
+                        IsEnabled="{Binding CanApply}" />
+                    <Button Classes="btn-ghost" Command="{Binding Cancel}" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Cancel]}" />
+                </StackPanel>
+            </Border>
+
+            <!--  Loading Indicator  -->
+            <Border
+                Grid.RowSpan="4"
+                Grid.ColumnSpan="4"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="#80000000"
+                CornerRadius="12"
+                IsVisible="{Binding IsLoading}">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="8">
+                    <TextBlock HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.EnumeratingFiles]}" />
+                    <ProgressBar
+                        Width="300"
+                        IsIndeterminate="{Binding IsLoading}"
+                        Maximum="1"
+                        Minimum="0" />
+                </StackPanel>
+            </Border>
         </Grid>
-
-        <!--  Preview grid  -->
-        <DataGrid
-            Grid.Row="2"
-            Margin="10,12,0,12"
-            CanUserResizeColumns="True"
-            ItemsSource="{Binding Preview}">
-            <DataGrid.Columns>
-                <DataGridTemplateColumn Header="{Binding Source={x:Static app:App.Lang}, Path=[Apply]}">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate x:DataType="vm:RelocateCandidate">
-                            <CheckBox IsChecked="{Binding Selected}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Width="2*" x:DataType="vm:RelocateCandidate" Binding="{Binding OldPath}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Path]}" IsReadOnly="True" />
-                <DataGridTextColumn Width="2*" x:DataType="vm:RelocateCandidate" Binding="{Binding NewPath}" Header="{Binding Source={x:Static app:App.Lang}, Path=[NewPath]}" IsReadOnly="True" />
-                <DataGridTextColumn Width="*" x:DataType="vm:RelocateCandidate" Binding="{Binding ConfidenceString}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Confidence]}" IsReadOnly="True" />
-                <DataGridTextColumn Width="*" x:DataType="vm:RelocateCandidate" Binding="{Binding Note}" Header="{Binding Source={x:Static app:App.Lang}, Path=[Note]}" IsReadOnly="True" />
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <!--  Buttons  -->
-        <StackPanel
-            Grid.Row="3"
-            Margin="0,0,10,10"
-            HorizontalAlignment="Right"
-            Orientation="Horizontal"
-            Spacing="8">
-            <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.NoteNoPath]}" />
-            <Button Command="{Binding CheckAllResults}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CheckAll]}" />
-            <Button Command="{Binding UncheckAllResults}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.UncheckAll]}" />
-            <Button Command="{Binding BuildPreview}" Content="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.CreatePreview]}" />
-            <Button
-                Command="{Binding Apply}"
-                Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Apply]}"
-                IsEnabled="{Binding CanApply}" />
-            <Button Command="{Binding Cancel}" Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Cancel]}" />
-        </StackPanel>
-
-        <!--  Loading Indicator  -->
-        <Border
-            Grid.RowSpan="4"
-            Grid.ColumnSpan="4"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
-            Background="#80000000"
-            IsVisible="{Binding IsLoading}">
-            <StackPanel
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Spacing="8">
-                <TextBlock HorizontalAlignment="Center" Text="{Binding Source={x:Static app:App.Lang}, Path=[RelocateFilesDialog.EnumeratingFiles]}" />
-                <ProgressBar
-                    Width="300"
-                    Height="12"
-                    IsIndeterminate="{Binding IsLoading}"
-                    Maximum="1"
-                    Minimum="0" />
-            </StackPanel>
-        </Border>
-    </Grid>
+    </Border>
 </Window>

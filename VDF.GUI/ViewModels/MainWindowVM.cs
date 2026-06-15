@@ -1443,12 +1443,38 @@ Non-Windows setup:
 			IsBusy = true;
 
 			if (isFreshScan) {
-				Scanner.StartSearch();
+				_ = RunSearchWithAsyncErrorHandling();
 			}
 			else {
-				Scanner.StartCompare();
+				_ = RunCompareWithAsyncErrorHandling();
 			}
 		}, CanStartScan);
+
+		/// <summary>
+		/// Wraps StartSearch() fire-and-forget so that exceptions thrown after the
+		/// first await are caught and logged instead of crashing the process.
+		/// </summary>
+		async Task RunSearchWithAsyncErrorHandling() {
+			try {
+				await Scanner.StartSearch();
+			}
+			catch (Exception ex) {
+				Logger.Instance.Info($"Unhandled error in StartSearch: {ex}");
+			}
+		}
+
+		/// <summary>
+		/// Wraps StartCompare() fire-and-forget so that exceptions thrown after the
+		/// first await are caught and logged instead of crashing the process.
+		/// </summary>
+		async Task RunCompareWithAsyncErrorHandling() {
+			try {
+				await Scanner.StartCompare();
+			}
+			catch (Exception ex) {
+				Logger.Instance.Info($"Unhandled error in StartCompare: {ex}");
+			}
+		}
 
 		IObservable<bool> CanStartScan {
 			[System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = WhenAnyValueTrimJustification)]

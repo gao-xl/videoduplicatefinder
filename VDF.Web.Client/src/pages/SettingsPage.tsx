@@ -139,49 +139,49 @@ export function SettingsPage() {
       {/* Similarity */}
       <Section title="Similarity">
         <SliderField label="Similarity Threshold" value={localSettings.threshhold} min={0} max={100} step={1}
-          onChange={v => handleChange('threshhold', v)} />
+          onChange={v => handleChange('threshhold', v)} description="Hash difference threshold. Lower = stricter matching (fewer false positives)." />
         <SliderField label="Percent Match" value={localSettings.percent} min={0} max={100} step={0.5}
-          onChange={v => handleChange('percent', v)} format={v => `${v}%`} />
+          onChange={v => handleChange('percent', v)} format={v => `${v}%`} description="Minimum similarity percentage to report as duplicate." />
         <SliderField label="Duration Tolerance (%)" value={localSettings.percentDurationDifference} min={0} max={100} step={1}
-          onChange={v => handleChange('percentDurationDifference', v)} format={v => `${v}%`} />
+          onChange={v => handleChange('percentDurationDifference', v)} format={v => `${v}%`} description="Maximum allowed duration difference between files to be considered duplicates." />
         <ToggleField label="Compare Horizontally Flipped" value={localSettings.compareHorizontallyFlipped}
-          onChange={v => handleChange('compareHorizontallyFlipped', v)} />
+          onChange={v => handleChange('compareHorizontallyFlipped', v)} description="Also detect duplicates that are horizontally mirrored." />
         <ToggleField label="Ignore Black Pixels" value={localSettings.ignoreBlackPixels}
-          onChange={v => handleChange('ignoreBlackPixels', v)} />
+          onChange={v => handleChange('ignoreBlackPixels', v)} description="Exclude black pixels from similarity comparison." />
         <ToggleField label="Ignore White Pixels" value={localSettings.ignoreWhitePixels}
-          onChange={v => handleChange('ignoreWhitePixels', v)} />
+          onChange={v => handleChange('ignoreWhitePixels', v)} description="Exclude white pixels from similarity comparison." />
       </Section>
 
       {/* Scanning */}
       <Section title="Scanning">
         <ToggleField label="Include Sub-Directories" value={localSettings.includeSubDirectories}
-          onChange={v => handleChange('includeSubDirectories', v)} />
+          onChange={v => handleChange('includeSubDirectories', v)} description="Recursively scan all subdirectories." />
         <ToggleField label="Include Images" value={localSettings.includeImages}
-          onChange={v => handleChange('includeImages', v)} />
+          onChange={v => handleChange('includeImages', v)} description="Also scan image files for duplicates." />
         <ToggleField label="Use Perceptual Hashing" value={localSettings.usePHashing}
-          onChange={v => handleChange('usePHashing', v)} />
+          onChange={v => handleChange('usePHashing', v)} description="Use perceptual hashing for better detection of resized/compressed duplicates." />
         <ToggleField label="Ignore Read-Only Folders" value={localSettings.ignoreReadOnlyFolders}
-          onChange={v => handleChange('ignoreReadOnlyFolders', v)} />
+          onChange={v => handleChange('ignoreReadOnlyFolders', v)} description="Skip folders that cannot be written to." />
         <ToggleField label="Ignore Reparse Points" value={localSettings.ignoreReparsePoints}
-          onChange={v => handleChange('ignoreReparsePoints', v)} />
+          onChange={v => handleChange('ignoreReparsePoints', v)} description="Skip symbolic links and junction points." />
         <ToggleField label="Exclude Hard Links" value={localSettings.excludeHardLinks}
-          onChange={v => handleChange('excludeHardLinks', v)} />
+          onChange={v => handleChange('excludeHardLinks', v)} description="Skip hard links to already-scanned files." />
         <ToggleField label="Use EXIF Creation Date" value={localSettings.useExifCreationDate}
-          onChange={v => handleChange('useExifCreationDate', v)} />
+          onChange={v => handleChange('useExifCreationDate', v)} description="Use EXIF metadata for image creation dates." />
         <ToggleField label="Include Non-Existing Files" value={localSettings.includeNonExistingFiles}
-          onChange={v => handleChange('includeNonExistingFiles', v)} />
+          onChange={v => handleChange('includeNonExistingFiles', v)} description="Compare against database entries whose files no longer exist." />
         <ToggleField label="Scan Against Entire Database" value={localSettings.scanAgainstEntireDatabase}
-          onChange={v => handleChange('scanAgainstEntireDatabase', v)} />
+          onChange={v => handleChange('scanAgainstEntireDatabase', v)} description="Compare new files against all known entries, not just scanned folders." />
         <SliderField label="Max Degree of Parallelism" value={localSettings.maxDegreeOfParallelism} min={1} max={32} step={1}
-          onChange={v => handleChange('maxDegreeOfParallelism', v)} />
+          onChange={v => handleChange('maxDegreeOfParallelism', v)} description="Number of parallel scanning threads. Higher = faster but more CPU usage." />
         <SliderField label="Thumbnail Count" value={localSettings.thumbnailCount} min={1} max={10} step={1}
-          onChange={v => handleChange('thumbnailCount', v)} />
+          onChange={v => handleChange('thumbnailCount', v)} description="Number of frame samples per video for comparison." />
       </Section>
 
       {/* File Filters */}
       <Section title="File Filters">
         <ToggleField label="Filter by File Size" value={localSettings.filterByFileSize}
-          onChange={v => handleChange('filterByFileSize', v)} />
+          onChange={v => handleChange('filterByFileSize', v)} description="Only scan files within a size range." />
         {localSettings.filterByFileSize && (
           <>
             <SliderField label="Minimum File Size (MB)" value={localSettings.minimumFileSize} min={0} max={10000} step={1}
@@ -191,48 +191,51 @@ export function SettingsPage() {
           </>
         )}
         <ToggleField label="Filter by Path Contains" value={localSettings.filterByFilePathContains}
-          onChange={v => handleChange('filterByFilePathContains', v)} />
+          onChange={v => handleChange('filterByFilePathContains', v)} description="Only scan files whose path contains specific text." />
         <ToggleField label="Filter by Path Not Contains" value={localSettings.filterByFilePathNotContains}
-          onChange={v => handleChange('filterByFilePathNotContains', v)} />
+          onChange={v => handleChange('filterByFilePathNotContains', v)} description="Skip files whose path contains specific text." />
         <SliderField label="Duration Min Difference (s)" value={localSettings.durationDifferenceMinSeconds} min={0} max={300} step={0.5}
-          onChange={v => handleChange('durationDifferenceMinSeconds', v)} />
+          onChange={v => handleChange('durationDifferenceMinSeconds', v)} description="Minimum duration difference to consider (0 = disabled)." />
         <SliderField label="Duration Max Difference (s)" value={localSettings.durationDifferenceMaxSeconds} min={0} max={300} step={0.5}
-          onChange={v => handleChange('durationDifferenceMaxSeconds', v)} />
+          onChange={v => handleChange('durationDifferenceMaxSeconds', v)} description="Maximum duration difference allowed (0 = no limit)." />
       </Section>
 
       {/* FFmpeg */}
       <Section title="FFmpeg">
         <ToggleField label="Use Native FFmpeg Binding" value={localSettings.useNativeFfmpegBinding}
-          onChange={v => handleChange('useNativeFfmpegBinding', v)} />
+          onChange={v => handleChange('useNativeFfmpegBinding', v)} description="Use FFmpeg.AutoGen native bindings instead of CLI (faster but requires FFmpeg shared libraries)." />
         <ToggleField label="Extended FFTools Logging" value={localSettings.extendedFFToolsLogging}
-          onChange={v => handleChange('extendedFFToolsLogging', v)} />
+          onChange={v => handleChange('extendedFFToolsLogging', v)} description="Log detailed FFmpeg/FFprobe command output for debugging." />
         <ToggleField label="Always Retry Failed Sampling" value={localSettings.alwaysRetryFailedSampling}
-          onChange={v => handleChange('alwaysRetryFailedSampling', v)} />
+          onChange={v => handleChange('alwaysRetryFailedSampling', v)} description="Re-attempt frame sampling on files that failed previously." />
         <ToggleField label="Log Excluded Files" value={localSettings.logExcludedFiles}
-          onChange={v => handleChange('logExcludedFiles', v)} />
+          onChange={v => handleChange('logExcludedFiles', v)} description="Log files skipped by filters (increases log size)." />
         <SelectField label="Hardware Acceleration" value={localSettings.hardwareAccelerationMode}
           options={['Auto', 'QSV', 'CUDA', 'D3D11VA', 'VAAPI', 'None']}
-          onChange={v => handleChange('hardwareAccelerationMode', v)} />
+          onChange={v => handleChange('hardwareAccelerationMode', v)} description="GPU acceleration for video decoding (requires compatible hardware)." />
         <TextField label="Custom FF Arguments" value={localSettings.customFFArguments}
-          onChange={v => handleChange('customFFArguments', v)} placeholder="e.g. -hwaccel cuda" />
+          onChange={v => handleChange('customFFArguments', v)} placeholder="e.g. -hwaccel cuda" description="Additional FFmpeg command-line arguments." />
         <SliderField label="Max Sampling Duration (s)" value={localSettings.maxSamplingDurationSeconds} min={0} max={600} step={1}
-          onChange={v => handleChange('maxSamplingDurationSeconds', v)} />
+          onChange={v => handleChange('maxSamplingDurationSeconds', v)} description="Maximum seconds of video to sample (0 = entire video)." />
       </Section>
 
       {/* Partial Clip Detection */}
       <Section title="Partial Clip Detection">
         <ToggleField label="Enable Partial Clip Detection" value={localSettings.enablePartialClipDetection}
-          onChange={v => handleChange('enablePartialClipDetection', v)} />
+          onChange={v => handleChange('enablePartialClipDetection', v)} description="Detect when a shorter video is a clip from a longer one (audio fingerprinting)." />
         {localSettings.enablePartialClipDetection && (
           <>
             <SliderField label="Min Clip Ratio" value={localSettings.partialClipMinRatio} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipMinRatio', v)} format={v => `${(v * 100).toFixed(0)}%`} />
+              onChange={v => handleChange('partialClipMinRatio', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description="Minimum clip duration as percentage of source (e.g. 10% means clip must be at least 10% of source)." />
             <SliderField label="Similarity Threshold" value={localSettings.partialClipSimilarityThreshold} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipSimilarityThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`} />
+              onChange={v => handleChange('partialClipSimilarityThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description="Minimum audio fingerprint similarity for a match (higher = fewer false positives)." />
             <ToggleField label="Require Visual Match" value={localSettings.partialClipRequireVisualMatch}
-              onChange={v => handleChange('partialClipRequireVisualMatch', v)} />
+              onChange={v => handleChange('partialClipRequireVisualMatch', v)} description="Also verify visual similarity at the matched offset." />
             <SliderField label="Visual Threshold" value={localSettings.partialClipVisualThreshold} min={0} max={1} step={0.01}
-              onChange={v => handleChange('partialClipVisualThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`} />
+              onChange={v => handleChange('partialClipVisualThreshold', v)} format={v => `${(v * 100).toFixed(0)}%`}
+              description="Minimum visual similarity for confirmation (when enabled)." />
           </>
         )}
       </Section>
@@ -240,19 +243,23 @@ export function SettingsPage() {
       {/* WebUI Thumbnails */}
       <Section title="WebUI Thumbnails">
         <ToggleField label="Auto-Load Thumbnails" value={localSettings.autoLoadThumbnails}
-          onChange={v => handleChange('autoLoadThumbnails', v)} />
+          onChange={v => handleChange('autoLoadThumbnails', v)} description="Automatically load thumbnails on the results page." />
         <SliderField label="Thumbnail Width (px)" value={localSettings.thumbnailWidth} min={48} max={960} step={16}
-          onChange={v => handleChange('thumbnailWidth', v)} format={v => `${v}px`} />
+          onChange={v => handleChange('thumbnailWidth', v)} format={v => `${v}px`}
+          description="Thumbnail resolution. Lower = less memory usage, more pixelated." />
         <SliderField label="JPEG Quality" value={localSettings.thumbnailJpegQuality} min={10} max={95} step={5}
-          onChange={v => handleChange('thumbnailJpegQuality', v)} />
+          onChange={v => handleChange('thumbnailJpegQuality', v)}
+          description="JPEG compression quality. Lower = smaller files, more artifacts." />
       </Section>
 
       {/* Database */}
       <Section title="Database">
         <TextField label="Custom Database Folder" value={localSettings.customDatabaseFolder}
-          onChange={v => handleChange('customDatabaseFolder', v)} placeholder="Leave empty for default" />
+          onChange={v => handleChange('customDatabaseFolder', v)} placeholder="Leave empty for default"
+          description="Custom location for the scan database (default: system config folder)." />
         <SliderField label="Checkpoint Interval (min)" value={localSettings.databaseCheckpointIntervalMinutes} min={1} max={60} step={1}
-          onChange={v => handleChange('databaseCheckpointIntervalMinutes', v)} />
+          onChange={v => handleChange('databaseCheckpointIntervalMinutes', v)}
+          description="How often to save scan progress during scanning (prevents data loss on crash)." />
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.75rem' }}>
           <button
             onClick={() => setShowCleanConfirm(true)}
@@ -340,12 +347,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 interface FieldProps {
   label: string
+  description?: string
 }
 
-function ToggleField({ label, value, onChange }: FieldProps & { value: boolean; onChange: (v: boolean) => void }) {
+function ToggleField({ label, value, onChange, description }: FieldProps & { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-      <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+      <div>
+        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
+      </div>
       <button
         onClick={() => onChange(!value)}
         style={{
@@ -377,14 +388,14 @@ function ToggleField({ label, value, onChange }: FieldProps & { value: boolean; 
   )
 }
 
-function SliderField({ label, value, min, max, step, onChange, format }: FieldProps & {
+function SliderField({ label, value, min, max, step, onChange, format, description }: FieldProps & {
   value: number; min: number; max: number; step: number
   onChange: (v: number) => void; format?: (v: number) => string
 }) {
   const pct = ((value - min) / (max - min)) * 100
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem', alignItems: 'baseline' }}>
         <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
         <span style={{
           fontSize: '0.78rem',
@@ -398,6 +409,7 @@ function SliderField({ label, value, min, max, step, onChange, format }: FieldPr
           {format ? format(value) : value}
         </span>
       </div>
+      {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>{description}</div>}
       <input
         type="range"
         min={min}
@@ -421,12 +433,15 @@ function SliderField({ label, value, min, max, step, onChange, format }: FieldPr
   )
 }
 
-function SelectField({ label, value, options, onChange }: FieldProps & {
+function SelectField({ label, value, options, onChange, description }: FieldProps & {
   value: string; options: string[]; onChange: (v: string) => void
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-      <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+      <div>
+        <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
+      </div>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -452,13 +467,14 @@ function SelectField({ label, value, options, onChange }: FieldProps & {
   )
 }
 
-function TextField({ label, value, onChange, placeholder }: FieldProps & {
+function TextField({ label, value, onChange, placeholder, description }: FieldProps & {
   value: string; onChange: (v: string) => void; placeholder?: string
 }) {
   return (
     <div>
-      <div style={{ marginBottom: '0.35rem' }}>
+      <div style={{ marginBottom: '0.15rem' }}>
         <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)' }}>{label}</span>
+        {description && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>{description}</div>}
       </div>
       <input
         value={value}

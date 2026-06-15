@@ -11,7 +11,8 @@ static class SseEndpoints {
 		group.RequireAuthorization();
 
 		// GET /api/scan/events — SSE endpoint for scan progress
-		group.MapGet("/events", async (HttpContext ctx, ScanService scan) => {
+		group.MapGet("/events", async (HttpContext ctx, ScanService scan, ILoggerFactory loggerFactory) => {
+			var logger = loggerFactory.CreateLogger("SseEndpoints");
 			ctx.Response.ContentType = "text/event-stream";
 			ctx.Response.Headers.CacheControl = "no-cache";
 			ctx.Response.Headers.Connection = "keep-alive";
@@ -30,7 +31,7 @@ static class SseEndpoints {
 					// token will stop the loop on the next iteration.
 					SendEvent(ctx, "state", msg, cts.Token).GetAwaiter().GetResult();
 				}
-				catch { /* connection closed */ }
+				catch (Exception ex) { logger.LogWarning(ex, "Error sending SSE event"); }
 			}
 
 			scan.StateChanged += OnStateChanged;

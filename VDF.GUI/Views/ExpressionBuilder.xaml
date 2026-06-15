@@ -20,7 +20,7 @@
     <Border Classes="dialog-root">
         <StackPanel>
             <!-- Content area -->
-            <StackPanel Spacing="12" Padding="24,20">
+            <StackPanel Spacing="12" Margin="24,20">
                 <!-- Available properties -->
                 <Border
                     Background="{DynamicResource SurfaceTertiaryBrush}"
@@ -29,7 +29,6 @@
                     MaxHeight="200">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <TextBlock
-                            IsReadOnly="True"
                             Text="{Binding AvailableProperties}"
                             TextWrapping="Wrap"
                             FontSize="12"

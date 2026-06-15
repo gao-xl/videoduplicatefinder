@@ -35,7 +35,7 @@ namespace VDF.CLI.Commands {
 			engine.ScanAborted += OnAborted;
 			ct.Register(() => { engine.Stop(); tcs.TrySetCanceled(); });
 
-			engine.StartSearch();
+			await engine.StartSearch();
 			await tcs.Task;
 
 			engine.BuildingHashesDone -= OnDone;
@@ -53,7 +53,7 @@ namespace VDF.CLI.Commands {
 			engine.ScanAborted += OnAborted;
 			ct.Register(() => { engine.Stop(); tcs.TrySetCanceled(); });
 
-			engine.StartCompare();
+			await engine.StartCompare();
 			await tcs.Task;
 
 			engine.ScanDone -= OnDone;
@@ -66,6 +66,8 @@ namespace VDF.CLI.Commands {
 		}
 
 		internal static void WireProgress(ScanEngine engine) {
+			bool isTerminal = !Console.IsErrorRedirected;
+
 			engine.FilesEnumerated += (_, _) =>
 				Console.Error.WriteLine("[scan] File enumeration complete.");
 
@@ -78,16 +80,19 @@ namespace VDF.CLI.Commands {
 				string stage = string.IsNullOrEmpty(e.CurrentStage)
 					? string.Empty
 					: e.StageMax > 0 ? $"  ({e.CurrentStage} {e.StageCurrent}/{e.StageMax})" : $"  ({e.CurrentStage})";
-				Console.Error.Write($"\r[{pct,3}%] {e.CurrentPosition}/{e.MaxPosition}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}    ");
+				if (isTerminal)
+					Console.Error.Write($"\r[{pct,3}%] {e.CurrentPosition}/{e.MaxPosition}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}    ");
+				else
+					Console.Error.WriteLine($"[{pct,3}%] {e.CurrentPosition}/{e.MaxPosition}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}");
 			};
 
 			engine.ScanDone += (_, _) => {
-				Console.Error.WriteLine();
+				if (isTerminal) Console.Error.WriteLine();
 				Console.Error.WriteLine("[scan] Comparison complete.");
 			};
 
 			engine.ScanAborted += (_, _) => {
-				Console.Error.WriteLine();
+				if (isTerminal) Console.Error.WriteLine();
 				Console.Error.WriteLine("[scan] Aborted.");
 			};
 		}

@@ -48,7 +48,13 @@ namespace VDF.CLI.Commands {
 				string output = ResultFormatter.Format(duplicates, format);
 
 				if (outFile != null) {
-					File.WriteAllText(outFile.FullName, output);
+					if (format == OutputFormat.Csv) {
+						var utf8Bom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+						File.WriteAllText(outFile.FullName, output, utf8Bom);
+					}
+					else {
+						File.WriteAllText(outFile.FullName, output);
+					}
 					Console.Error.WriteLine($"Results written to: {outFile.FullName}");
 				}
 				else {

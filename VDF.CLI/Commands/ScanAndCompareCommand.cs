@@ -74,15 +74,22 @@ namespace VDF.CLI.Commands {
 				}
 
 				string output = ResultFormatter.Format(duplicates, format);
-				WriteOutput(output, outFile);
+				WriteOutput(output, outFile, format);
 			});
 
 			return cmd;
 		}
 
-		static void WriteOutput(string content, FileInfo? outFile) {
+		static void WriteOutput(string content, FileInfo? outFile, OutputFormat format = OutputFormat.Text) {
 			if (outFile != null) {
-				File.WriteAllText(outFile.FullName, content);
+				if (format == OutputFormat.Csv) {
+					// CSV with UTF-8 BOM for Excel compatibility
+					var utf8Bom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+					File.WriteAllText(outFile.FullName, content, utf8Bom);
+				}
+				else {
+					File.WriteAllText(outFile.FullName, content);
+				}
 				Console.Error.WriteLine($"Results written to: {outFile.FullName}");
 			}
 			else {

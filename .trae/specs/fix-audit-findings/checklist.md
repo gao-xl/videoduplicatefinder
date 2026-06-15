@@ -1,17 +1,17 @@
-- [ ] 登录限速器在并发请求下正确共享实例，per-IP 限速生效
-- [ ] 认证 Cookie 在 HTTPS 环境下设置 Secure 标志
-- [ ] returnUrl 参数验证阻止恶意重定向（含 `://` 的 URL 被拒绝）
-- [ ] Refresh Token 超过 7 天后无法使用
-- [ ] 登出端点正确撤销 Refresh Token
-- [ ] 最大会话数限制（5 个）生效
-- [ ] FFmpeg 中断回调委托不被 GC 回收
-- [ ] SQLite 数据库操作线程安全，并发写入不导致 SQLITE_MISUSE
-- [ ] ScanEngine.StartSearch/StartCompare 为 async Task，异常不终止进程
-- [ ] 缩略图缓存无竞态条件，并发请求不导致缓存清空
-- [ ] 未配置 CORS 时不允许跨域请求
-- [ ] FileEntry.grayBytes/PHashes 使用 ConcurrentDictionary，并发写入不抛异常
-- [ ] 前端 SSE/SignalR 在 Token 刷新后使用新 Token
-- [ ] 所有 catch 块记录异常日志，无静默吞异常
-- [ ] 密码不出现在任何日志输出中
-- [ ] 共享计数器使用 Interlocked，无丢失更新
-- [ ] HardwareAccelerationDetector._cachedDevices 线程安全
+- [x] 登录限速器在并发请求下正确共享实例，per-IP 限速生效
+- [x] 认证 Cookie 在 HTTPS 环境下设置 Secure 标志
+- [x] returnUrl 参数验证阻止恶意重定向（含 `://` 的 URL 被拒绝）
+- [x] Refresh Token 超过 7 天后无法使用
+- [x] 登出端点正确撤销 Refresh Token
+- [x] 最大会话数限制（5 个）生效
+- [x] FFmpeg 中断回调委托不被 GC 回收
+- [x] SQLite 数据库操作线程安全，并发写入不导致 SQLITE_MISUSE
+- [x] ScanEngine.StartSearch/StartCompare 为 async Task，异常不终止进程
+- [x] 缩略图缓存无竞态条件，并发请求不导致缓存清空
+- [x] 未配置 CORS 时不允许跨域请求
+- [x] FileEntry.grayBytes/PHashes 使用 ConcurrentDictionary，并发写入不抛异常
+- [x] 前端 SSE/SignalR 在 Token 刷新后使用新 Token
+- [x] 所有 catch 块记录异常日志，无静默吞异常
+- [x] 密码不出现在任何日志输出中
+- [x] 共享计数器使用 Interlocked，无丢失更新
+- [x] HardwareAccelerationDetector._cachedDevices 线程安全

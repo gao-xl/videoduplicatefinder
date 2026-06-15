@@ -16,12 +16,14 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using VDF.Core;
 using VDF.Web.Endpoints;
 using VDF.Web.Hubs;
 using VDF.Web.Middleware;
 using VDF.Web.Services;
+using VDF.Web.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,6 +97,15 @@ builder.Services.AddRateLimiter(options => {
 				QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
 				QueueLimit = 0,
 			}));
+	options.AddPolicy("login", context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+			_ => new FixedWindowRateLimiterOptions {
+				PermitLimit = 5,
+				Window = TimeSpan.FromMinutes(1),
+				QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+				QueueLimit = 0,
+			}));
 	options.OnRejected = async (context, ct) => {
 		context.HttpContext.Response.StatusCode = 429;
 		await context.HttpContext.Response.WriteAsJsonAsync(new { error = "too_many_requests" }, ct);
@@ -115,11 +126,10 @@ if (!string.IsNullOrEmpty(corsOrigins)) {
 	});
 }
 else {
+	// Restrictive default: no cross-origin requests allowed
 	builder.Services.AddCors(options => {
 		options.AddDefaultPolicy(policy => {
-			policy.AllowAnyOrigin()
-				.AllowAnyHeader()
-				.AllowAnyMethod();
+			// No AllowAnyOrigin — only same-origin requests are permitted
 		});
 	});
 }
@@ -146,6 +156,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options => {
 });
 
 var app = builder.Build();
+
+if (string.IsNullOrEmpty(corsOrigins)) {
+	app.Logger.LogWarning("VDF_CORS_ORIGINS is not set. CORS policy is restrictive by default — only same-origin requests are permitted. Set VDF_CORS_ORIGINS to allow specific origins.");
+}
 
 // Apply path base before any other middleware so all route matching and link
 // generation use the correct prefix. When VDF_BASE_PATH is not set, this is a
@@ -231,7 +245,7 @@ app.Use(async (ctx, next) => {
 			ctx.Response.StatusCode = 401;
 			return;
 		}
-		var returnUrl = Uri.EscapeDataString(path);
+		var returnUrl = Uri.EscapeDataString(RedirectHelper.SafeReturnUrl(path));
 		ctx.Response.Redirect($"/login?returnUrl={returnUrl}");
 		return;
 	}
@@ -272,7 +286,7 @@ app.MapPost("/auth/login", async (HttpContext ctx, AuthService auth) => {
 
 		// If the request came from a browser form, redirect
 		if (!contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
-			ctx.Response.Redirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+			ctx.Response.Redirect(RedirectHelper.SafeReturnUrl(returnUrl));
 			return;
 		}
 
@@ -287,37 +301,16 @@ app.MapPost("/auth/login", async (HttpContext ctx, AuthService auth) => {
 	else {
 		if (!contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
 			var qs = "?error=1";
-			if (!string.IsNullOrEmpty(returnUrl))
-				qs += $"&returnUrl={Uri.EscapeDataString(returnUrl)}";
+			var safeReturn = RedirectHelper.SafeReturnUrl(returnUrl);
+			if (safeReturn != "/")
+				qs += $"&returnUrl={Uri.EscapeDataString(safeReturn)}";
 			ctx.Response.Redirect($"/login{qs}");
 			return;
 		}
 		ctx.Response.StatusCode = 401;
 		await ctx.Response.WriteAsJsonAsync(new { error = "invalid_credentials" });
 	}
-});
-
-// Login rate limiting middleware — 5 requests per minute per IP
-app.Use(async (ctx, next) => {
-	if ((ctx.Request.Path.StartsWithSegments("/auth/login") || ctx.Request.Path.StartsWithSegments("/api/auth/login"))
-		&& ctx.Request.Method == "POST") {
-		var limiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions {
-			PermitLimit = 5,
-			Window = TimeSpan.FromMinutes(1),
-			QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-			QueueLimit = 0,
-		});
-		using var lease = await limiter.AcquireAsync(1);
-		if (!lease.IsAcquired) {
-			ctx.Response.StatusCode = 429;
-			await ctx.Response.WriteAsJsonAsync(new { error = "too_many_requests" });
-			return;
-		}
-	}
-	await next();
-});
-
-// Refresh token endpoint (legacy)
+}).RequireRateLimiting("login");
 app.MapPost("/auth/refresh", (HttpContext ctx, AuthService auth) => {
 	if (!ctx.Request.HasJsonContentType()) {
 		ctx.Response.StatusCode = 400;
@@ -364,14 +357,19 @@ app.MapGet("/thumbnail/hq", async (HttpContext ctx, ScanService scan) => {
 
 	string cacheKey = $"{path}|{position.TotalSeconds:F2}|{width}|{quality}";
 
-	if (!scan.HqThumbCache.TryGetValue(cacheKey, out var jpeg)) {
-		// FFmpeg encodes at the requested quality directly — no re-encode pass needed.
-		jpeg = await Task.Run(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
-		if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-		if (scan.HqThumbCache.Count >= 4096)
-			scan.HqThumbCache.Clear();
-		scan.HqThumbCache.TryAdd(cacheKey, jpeg);
+	var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
+	if (scan.HqThumbCache.TryAdd(cacheKey, lazy)) {
+		if (scan.HqThumbCache.Count > 4096) {
+			lock (scan.HqThumbCacheLock) {
+				if (scan.HqThumbCache.Count > 4096) {
+					scan.HqThumbCache.Clear();
+					scan.HqThumbCache.TryAdd(cacheKey, lazy);
+				}
+			}
+		}
 	}
+	var jpeg = await Task.Run(() => scan.HqThumbCache[cacheKey].Value);
+	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 	ctx.Response.ContentType = "image/jpeg";
 	ctx.Response.Headers.CacheControl = "public, max-age=3600";
@@ -393,14 +391,19 @@ app.MapGet("/thumbnail/full", async (HttpContext ctx, ScanService scan) => {
 
 	string cacheKey = $"{path}|{position.TotalSeconds:F2}|full";
 
-	if (!scan.FullThumbCache.TryGetValue(cacheKey, out var jpeg)) {
-		jpeg = await Task.Run(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
-		if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-		// Full-resolution frames are megabytes each — keep this cache small.
-		if (scan.FullThumbCache.Count >= 64)
-			scan.FullThumbCache.Clear();
-		scan.FullThumbCache.TryAdd(cacheKey, jpeg);
+	var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
+	if (scan.FullThumbCache.TryAdd(cacheKey, lazy)) {
+		if (scan.FullThumbCache.Count > 64) {
+			lock (scan.FullThumbCacheLock) {
+				if (scan.FullThumbCache.Count > 64) {
+					scan.FullThumbCache.Clear();
+					scan.FullThumbCache.TryAdd(cacheKey, lazy);
+				}
+			}
+		}
 	}
+	var jpeg = await Task.Run(() => scan.FullThumbCache[cacheKey].Value);
+	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 	ctx.Response.ContentType = "image/jpeg";
 	ctx.Response.Headers.CacheControl = "public, max-age=3600";

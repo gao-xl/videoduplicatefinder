@@ -50,9 +50,9 @@ namespace VDF.Core.FFTools.FFmpegNative {
 
 				// Interrupt callback: abort blocking I/O after 15 seconds.
 				long deadlineTicks = Stopwatch.GetTimestamp() + (long)(15.0 / 1000.0 * Stopwatch.Frequency);
-				var interruptCb = new AVIOInterruptCB_callback(_ =>
+				_interruptCbDelegate = new AVIOInterruptCB_callback(_ =>
 					Stopwatch.GetTimestamp() > deadlineTicks ? 1 : 0);
-				pFormatContext->interrupt_callback = new AVIOInterruptCB { callback = interruptCb };
+				pFormatContext->interrupt_callback = new AVIOInterruptCB { callback = _interruptCbDelegate };
 
 				var pCtx = pFormatContext;
 				int openRet = ffmpeg.avformat_open_input(&pCtx, filePath, null, null);

@@ -29,6 +29,7 @@ export function CompareModal({ items, onClose }: CompareModalProps) {
 
   const leftItem = items[leftIdx]
   const rightItem = items[rightIdx]
+  if (!leftItem || !rightItem) return null
 
   return (
     <div style={{

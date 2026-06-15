@@ -98,9 +98,10 @@
                                 Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Tab.Scanner]}" />
                         </TabItem.Header>
                         <Grid Margin="0,0,0,10" RowDefinitions="Auto, *, Auto">
-                            <Menu Grid.Row="0" MinHeight="30"
-                                Background="{actipro:ThemeResource Container2BackgroundBrush}"
-                                BorderBrush="{actipro:ThemeResource Container2BorderBrush}">
+                            <Border Grid.Row="0" Classes="toolbar">
+                            <Menu MinHeight="30"
+                                Background="Transparent"
+                                BorderThickness="0">
                                 <Menu.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -575,6 +576,7 @@
                                         </StackPanel>
                                     </CheckBox>
                             </Menu>
+                            </Border>
                             <Grid Grid.Row="1">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -585,7 +587,7 @@
                                     Grid.Row="0"
                                     Classes="filter-bar"
                                     IsVisible="{Binding IsFilterEnabled}">
-                                    <WrapPanel Spacing="8">
+                                    <WrapPanel>
                                         <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Filter.Path]}" />
                                         <TextBox
                                             MinWidth="150"
@@ -1324,9 +1326,10 @@
                                 Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Tab.Settings]}" />
                         </TabItem.Header>
                         <Grid Margin="0,0,0,10" RowDefinitions="Auto, *">
-                            <Menu 
-                                Background="{actipro:ThemeResource Container2BackgroundBrush}"
-                                BorderBrush="{actipro:ThemeResource Container2BorderBrush}" Grid.Row="0" MinHeight="30">
+                            <Border Grid.Row="0" Classes="toolbar">
+                            <Menu MinHeight="30"
+                                Background="Transparent"
+                                BorderThickness="0">
                                 <MenuItem Command="{Binding SaveSettingsCommand}" ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.SaveTooltip]}">
                                     <MenuItem.Header>
                                         <StackPanel Orientation="Horizontal">
@@ -1373,6 +1376,7 @@
                                     </MenuItem.Header>
                                 </MenuItem>
                             </Menu>
+                            </Border>
                             <TabControl Grid.Row="1" TabStripPlacement="Left"
                                       IsEnabled="{Binding !IsScanning}">
                                 <TabControl.Styles>
@@ -1846,9 +1850,7 @@
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="16,12,16,16" Spacing="12">
                                             <!-- FFmpeg -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="8">
                                                     <CheckBox Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.UseNativeFfmpegBinding]}"
                                                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=UseNativeFfmpegBinding}" IsThreeState="False"
@@ -1860,7 +1862,7 @@
                                                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=LogExcludedFiles}" IsThreeState="False"
                                                               ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.LogExcludedFilesTooltip]}" />
                                                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                                        <TextBlock VerticalAlignment="Center" FontSize="14"
+                                                        <TextBlock Classes="section-title" VerticalAlignment="Center"
                                                                    Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.HardwareAcceleration]}" />
                                                         <Button Classes="hyperlink" Command="{Binding OpenHWInfoLinkCommand}"
                                                                 Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.MoreInfo]}" />
@@ -1876,11 +1878,9 @@
                                                 </StackPanel>
                                             </Border>
                                             <!-- Custom Commands & Advanced -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="8">
-                                                    <TextBlock FontSize="14" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomCommands]}" />
+                                                    <TextBlock Classes="section-title" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomCommands]}" />
                                                     <ComboBox Width="250" HorizontalAlignment="Left"
                                                               ItemsSource="{Binding CustomCommandList}"
                                                               SelectedItem="{Binding SelectedCustomCommand}"
@@ -1888,11 +1888,11 @@
                                                     <TextBox Width="250" HorizontalAlignment="Left"
                                                              Text="{Binding SelectedCustomCommandValue}"
                                                              ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomCommandsPlaceholderTooltip]}" />
-                                                    <TextBlock FontSize="14" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomDatabaseFolder]}" />
+                                                    <TextBlock Classes="section-title" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomDatabaseFolder]}" />
                                                     <TextBox Width="250" HorizontalAlignment="Left"
                                                              Text="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=CustomDatabaseFolder}"
                                                              ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.CustomDatabaseFolderTooltip]}" />
-                                                    <TextBlock FontSize="14" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.DatabaseCheckpointInterval]}" />
+                                                    <TextBlock Classes="section-title" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.DatabaseCheckpointInterval]}" />
                                                     <NumericUpDown Width="250" HorizontalAlignment="Left"
                                                                    Minimum="0" Maximum="60" Increment="1" FormatString="0"
                                                                    Value="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=DatabaseCheckpointIntervalMinutes}"
@@ -1911,9 +1911,7 @@
                                     </TabItem.Header>
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="16,12,16,16" Spacing="12">
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="8">
                                                     <CheckBox Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.EnableScheduledScan]}"
                                                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=EnableScheduledScan}" />
@@ -2095,7 +2093,10 @@
                                 <RowDefinition />
                             </Grid.RowDefinitions>
 
-                            <Menu Grid.Row="0" MinHeight="30">
+                            <Border Grid.Row="0" Classes="toolbar">
+                            <Menu MinHeight="30"
+                                Background="Transparent"
+                                BorderThickness="0">
                                 <MenuItem Command="{Binding ClearLogCommand}">
                                     <MenuItem.Header>
                                         <StackPanel Orientation="Horizontal">
@@ -2143,6 +2144,7 @@
                                     </MenuItem.Header>
                                 </MenuItem>
                             </Menu>
+                            </Border>
                             <ListBox
                                 x:Name="LogListBox"
                                 Grid.Row="1"

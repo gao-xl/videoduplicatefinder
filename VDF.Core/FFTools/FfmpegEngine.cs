@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using FFmpeg.AutoGen;
 using VDF.Core.FFTools.FFmpegNative;
 using VDF.Core.Utils;
@@ -48,7 +49,7 @@ namespace VDF.Core.FFTools {
 				_useNativeBinding = value;
 				// Reset the per-scan native-health state whenever native binding is (re)configured,
 				// i.e. at the start of each scan.
-				_nativeConsecutiveFailures = 0;
+				Interlocked.Exchange(ref _nativeConsecutiveFailures, 0);
 				_nativeDisabledForSession = false;
 			}
 		}
@@ -59,19 +60,19 @@ namespace VDF.Core.FFTools {
 		// of a per-file stack-trace storm. A native success resets the counter so an isolated
 		// bad file doesn't disable native for the whole library.
 		static int _nativeConsecutiveFailures;
-		static bool _nativeDisabledForSession;
+		static volatile bool _nativeDisabledForSession;
 		const int NativeFailureThreshold = 5;
 
 		/// <summary>True when a native FFmpeg operation should be attempted.</summary>
 		static bool ShouldUseNativeBinding =>
 			UseNativeBinding && !_nativeDisabledForSession && FFmpegNative.FFmpegHelper.CanLoadNativeLibraries;
 
-		static void RecordNativeSuccess() => _nativeConsecutiveFailures = 0;
+		static void RecordNativeSuccess() => Interlocked.Exchange(ref _nativeConsecutiveFailures, 0);
 
 		static void RecordNativeFailure(string file, Exception e) {
 			if (_nativeDisabledForSession)
 				return;
-			int n = ++_nativeConsecutiveFailures;
+			int n = Interlocked.Increment(ref _nativeConsecutiveFailures);
 			if (n >= NativeFailureThreshold) {
 				_nativeDisabledForSession = true;
 				Logger.Instance.Info(
@@ -205,8 +206,8 @@ namespace VDF.Core.FFTools {
 
 						if (!GrayBytesUtils.VerifyGrayScaleValues(data))
 							tooDarkCounter++;
-						videoFile.grayBytes.Add(position, data);
-						videoFile.PHashes.Add(position, pHash.PerceptualHash.ComputePHashFromGray32x32(data));
+						videoFile.grayBytes.TryAdd(position, data);
+						videoFile.PHashes.TryAdd(position, pHash.PerceptualHash.ComputePHashFromGray32x32(data));
 						onSampleComplete?.Invoke(i + 1);
 					}
 				}
@@ -582,8 +583,8 @@ namespace VDF.Core.FFTools {
 				}
 				if (!GrayBytesUtils.VerifyGrayScaleValues(data))
 					tooDarkCounter++;
-				videoFile.grayBytes.Add(position, data);
-				videoFile.PHashes.Add(position, pHash.PerceptualHash.ComputePHashFromGray32x32(data));
+				videoFile.grayBytes.TryAdd(position, data);
+				videoFile.PHashes.TryAdd(position, pHash.PerceptualHash.ComputePHashFromGray32x32(data));
 				onSampleComplete?.Invoke(i + 1);
 			}
 			if (tooDarkCounter == missingPositions) {
