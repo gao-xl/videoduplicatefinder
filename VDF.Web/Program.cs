@@ -35,8 +35,8 @@ if (!string.IsNullOrEmpty(basePath)) {
 	builder.Configuration["BasePath"] = basePath;
 }
 
-builder.Services.AddRazorComponents()
-	.AddInteractiveServerComponents();
+// React SPA - static file serving only (no Blazor Server)
+builder.Services.AddAntiforgery();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -199,7 +199,6 @@ if (app.Environment.IsDevelopment()) {
 }
 
 app.UseStaticFiles();
-app.UseAntiforgery();
 
 // Health check endpoint — lightweight, no auth required, for load balancers / orchestrators.
 app.MapGet("/health", async (HealthCheckService health) => {
@@ -222,16 +221,19 @@ app.UseAuthorization();
 var authService = app.Services.GetRequiredService<AuthService>();
 app.Use(async (ctx, next) => {
 	var path = ctx.Request.Path.Value ?? "/";
-	// Always allow: login page, auth endpoints, health check, static files, Blazor framework resources, API auth endpoints
+	// Always allow: login page, auth endpoints, health check, static files, API auth endpoints
 	if (!authService.AuthEnabled
 		|| path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
 		|| path.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase)
 		|| path.StartsWith("/api/auth/", StringComparison.OrdinalIgnoreCase)
 		|| path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
-		|| path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase)
-		|| path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase)
-		|| path.StartsWith("/app.css", StringComparison.OrdinalIgnoreCase)
-		|| path.StartsWith("/app.js", StringComparison.OrdinalIgnoreCase)
+		|| path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".js", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+		|| path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)
 		|| path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)) {
 		await next();
 		return;
@@ -456,11 +458,6 @@ app.MapSseApi();
 // ── SignalR hub ──
 
 app.MapHub<ScanHub>("/scanhub");
-
-// ── Blazor Server (kept for backward compatibility) ──
-
-app.MapRazorComponents<VDF.Web.Components.App>()
-	.AddInteractiveServerRenderMode();
 
 // SPA fallback — serve index.html for non-API routes (React Router)
 app.MapFallbackToFile("index.html");

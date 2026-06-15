@@ -239,7 +239,14 @@ namespace VDF.Core {
 					if (Settings.UsePHashing) {
 						var phashes = new ulong?[positions.Count];
 						for (int j = 0; j < positions.Count; j++) {
-							phashes[j] = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[j]!);
+							double idx = entry.GetGrayBytesIndex(positions[j], Settings.MaxSamplingDurationSeconds);
+							if (!entry.PHashes.TryGetValue(idx, out ulong? cached)) {
+								phashes[j] = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[j]!);
+								entry.PHashes[idx] = phashes[j];
+							}
+							else {
+								phashes[j] = cached;
+							}
 						}
 						entry.comparePHashes = phashes;
 						entry.comparePHash = phashes[0];

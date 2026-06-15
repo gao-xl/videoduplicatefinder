@@ -52,6 +52,12 @@ public static class ComparePhaseProbe {
 		// pair passes the duration filter, so CheckIfDuplicate dominates.
 		RunCompareScenario("videos-6000-dense-gray", count: 6000, usePHashing: false, durationMin: 1200, durationSpread: 240);
 		RunCompareScenario("videos-6000-dense-phash", count: 6000, usePHashing: true, durationMin: 1200, durationSpread: 240);
+		// Multi-position pHash pre-filter: all positions must pass
+		RunCompareScenario("videos-6000-dense-phash-multilocal", count: 6000, usePHashing: true, durationMin: 1200, durationSpread: 240,
+			fileSizeTolerance: 50, resolutionPreFilter: true);
+		// File size + resolution pre-filter scenarios
+		RunCompareScenario("videos-8000-bucketed-phash-prefilter", count: 8000, usePHashing: true, durationMin: 30, durationSpread: 3570,
+			fileSizeTolerance: 50, resolutionPreFilter: true);
 		RunHighlightScenario("highlight-20000-items-5000-groups", groupCount: 5000, groupSize: 4);
 		return 0;
 	}
@@ -135,13 +141,16 @@ public static class ComparePhaseProbe {
 		return engine;
 	}
 
-	static void RunCompareScenario(string name, int count, bool usePHashing, double durationMin, double durationSpread) {
+	static void RunCompareScenario(string name, int count, bool usePHashing, double durationMin, double durationSpread,
+		double fileSizeTolerance = 0, bool resolutionPreFilter = false) {
 		var entries = BuildCorpus(count, new Random(12345), durationMin, durationSpread);
 		DatabaseUtils.Database.Clear();
 		foreach (var entry in entries)
 			DatabaseUtils.Database.Add(entry);
 
 		var engine = CreateEngine(usePHashing);
+		engine.Settings.FileSizeTolerancePercent = fileSizeTolerance;
+		engine.Settings.EnableResolutionPreFilter = resolutionPreFilter;
 
 		var times = new List<double>();
 		int duplicateCount = 0, groupCount = 0;

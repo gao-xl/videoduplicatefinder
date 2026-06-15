@@ -858,6 +858,26 @@ namespace VDF.Core {
 		return result;
 	}
 
+		/// <summary>
+		/// Multi-position quick pre-filter using pHash Hamming distance. Returns true if
+		/// the pair should be considered further (all positions within a generous upper
+		/// bound), false if the pair can be safely skipped. When neither entry has
+		/// multi-position pHash data, falls back to single-position <see cref="QuickPHashPreFilter"/>.
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static bool QuickPHashPreFilterMulti(FileEntry a, FileEntry b) {
+			ulong?[]? phashesA = a.comparePHashes;
+			ulong?[]? phashesB = b.comparePHashes;
+			if (phashesA == null || phashesB == null || phashesA.Length != phashesB.Length)
+				return QuickPHashPreFilter(a, b); // fallback to single-position
+			for (int i = 0; i < phashesA.Length; i++) {
+				if (phashesA[i] == null || phashesB[i] == null) continue;
+				int hamming = BitOperations.PopCount(phashesA[i]!.Value ^ phashesB[i]!.Value);
+				if (hamming > 32) return false; // any position too different -> skip
+			}
+			return true;
+		}
+
 		/// <summary>Returns true if the last <paramref name="depth"/> path segments of both folder paths are equal (case-insensitive).</summary>
 	static bool SameFolderAtDepth(ReadOnlySpan<char> a, ReadOnlySpan<char> b, int depth) {
 		for (int i = 0; i < depth; i++) {
@@ -937,16 +957,24 @@ namespace VDF.Core {
 			}
 			entry.compareGray = gray;
 
+			// Compute pHash for ALL sample positions when pHashing is enabled.
+			// Multi-position pHash pre-filtering: all positions must pass the
+			// similarity threshold for a pair to be considered duplicates.
 			if (usePHashing) {
-				double idx0 = GetGrayBytesIndex(entry, positionList[0]);
-				if (!entry.PHashes.TryGetValue(idx0, out ulong? phash)) {
-					phash = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[0]);
-					entry.PHashes[idx0] = phash; // cache for future quick rescans
-					entry.dirty = true;
+				var phashes = new ulong?[positionList.Count];
+				for (int j = 0; j < positionList.Count; j++) {
+					double idx = GetGrayBytesIndex(entry, positionList[j]);
+					if (!entry.PHashes.TryGetValue(idx, out ulong? phash)) {
+						phash = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[j]);
+						entry.PHashes[idx] = phash; // cache for future quick rescans
+						entry.dirty = true;
+					}
+					if (phash == null)
+						LogMissingPHash(entry.Path);
+					phashes[j] = phash;
 				}
-				if (phash == null)
-					LogMissingPHash(entry.Path);
-				entry.comparePHash = phash;
+				entry.comparePHashes = phashes;
+				entry.comparePHash = phashes[0]; // backward compat for single-position code paths
 			}
 			// Always compute first-position pHash for quick pre-filtering, even when
 			// UsePHashing is disabled. The cost is minimal (one DCT on 32x32 gray bytes)
@@ -1262,7 +1290,7 @@ namespace VDF.Core {
 							continue;
 
 						// 1. QuickPHashPreFilter (cheapest, O(1))
-						if (!QuickPHashPreFilter(entry, compItem))
+						if (!QuickPHashPreFilterMulti(entry, compItem))
 							continue;
 
 						// 2. Duration tolerance
@@ -1331,7 +1359,7 @@ namespace VDF.Core {
 					var compItem = imageEntries[n];
 
 					// 1. QuickPHashPreFilter (cheapest, O(1))
-					if (!QuickPHashPreFilter(entry, compItem))
+					if (!QuickPHashPreFilterMulti(entry, compItem))
 						continue;
 
 					// 2. File size pre-filter for images
@@ -1400,7 +1428,7 @@ namespace VDF.Core {
 						var compItem = videoEntries[n];
 
 						// 1. QuickPHashPreFilter (cheapest, O(1))
-						if (!QuickPHashPreFilter(entry, compItem))
+						if (!QuickPHashPreFilterMulti(entry, compItem))
 							continue;
 
 						// 2. Duration tolerance
@@ -1607,7 +1635,7 @@ namespace VDF.Core {
 							var compItem = videoEntries[n];
 
 							// 1. QuickPHashPreFilter (cheapest, O(1))
-							if (!QuickPHashPreFilter(entry, compItem))
+							if (!QuickPHashPreFilterMulti(entry, compItem))
 								continue;
 
 							// 2. Duration tolerance
