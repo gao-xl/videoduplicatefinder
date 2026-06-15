@@ -17,6 +17,8 @@
 using System.Diagnostics;
 using System.Text.Json;
 using MemoryPack;
+using VDF.Core.Data;
+using VDF.Core.ViewModels;
 
 namespace VDF.Core.Utils {
 	static class DatabaseUtils {
@@ -33,6 +35,14 @@ namespace VDF.Core.Utils {
 		internal static string? CustomDatabaseFolder;
 		static string? _resolvedDatabaseFolder;
 
+		/// <summary>When true, use SQLite storage; when false, use the legacy MemoryPack format.</summary>
+		internal static bool UseSqlite = true;
+
+		/// <summary>When true, load entries in lightweight mode (skip large BLOBs) and populate them on demand.</summary>
+		internal static bool UseLightweightLoad { get; set; }
+
+		static SqliteDatabase? _sqliteDb;
+
 		static string ResolveDatabaseFolder() => CoreUtils.ResolveDatabaseFolder(CustomDatabaseFolder);
 
 		internal static void InvalidateDatabaseFolder() => _resolvedDatabaseFolder = null;
@@ -41,8 +51,50 @@ namespace VDF.Core.Utils {
 
 		static string CurrentDatabasePath => FileUtils.SafePathCombine(DatabaseFolder, "ScannedFiles.db");
 		static string TempDatabasePath => FileUtils.SafePathCombine(DatabaseFolder, "ScannedFiles_new.db");
+		static string SqliteDatabasePath => FileUtils.SafePathCombine(DatabaseFolder, "vdf.db");
+
+		static SqliteDatabase SqliteDb {
+			get {
+				if (_sqliteDb == null) {
+					_sqliteDb = new SqliteDatabase();
+					_sqliteDb.Open(SqliteDatabasePath);
+				}
+				return _sqliteDb;
+			}
+		}
 
 		internal static bool LoadDatabase() {
+			if (UseSqlite)
+				return LoadDatabaseSqlite();
+			return LoadDatabaseLegacy();
+		}
+
+		static bool LoadDatabaseSqlite() {
+			// Run migration if old database exists but SQLite database doesn't yet
+			if (!File.Exists(SqliteDatabasePath)) {
+				SqliteDatabaseMigrator.MigrateIfNeeded(DatabaseFolder, SqliteDb);
+			}
+
+			var st = Stopwatch.StartNew();
+			try {
+				var entries = SqliteDb.LoadFileEntries(lightweight: UseLightweightLoad);
+				DbWrapper = new DatabaseWrapper();
+				foreach (var entry in entries)
+					DbWrapper.Entries.Add(entry);
+			}
+			catch (Exception ex) {
+				st.Stop();
+				Logger.Instance.Info($"Importing previously scanned files from SQLite has failed because of: {ex}");
+				return false;
+			}
+
+			st.Stop();
+			Logger.Instance.Info($"Previously scanned files imported (SQLite). {Database.Count:N0} files in {st.Elapsed}");
+			MigrateImageHashesIfNeeded();
+			return true;
+		}
+
+		internal static bool LoadDatabaseLegacy() {
 			FileInfo databaseFile = new(TempDatabasePath);
 			if (!databaseFile.Exists)
 				databaseFile = new(CurrentDatabasePath);
@@ -84,7 +136,7 @@ namespace VDF.Core.Utils {
 				if (databaseFile.FullName == new FileInfo(TempDatabasePath).FullName) {
 					Logger.Instance.Info($"Importing previously scanned files from '{databaseFile.FullName}' has failed; retrying with the main database file.");
 					try { databaseFile.Delete(); } catch (Exception) { }
-					return LoadDatabase();
+					return LoadDatabaseLegacy();
 				}
 				Logger.Instance.Info($"Importing previously scanned files has failed because of: {ex}");
 				try {
@@ -118,6 +170,7 @@ namespace VDF.Core.Utils {
 					entry.grayBytes.Clear();
 					entry.PHashes.Clear();
 					entry.Flags.Set(EntryFlags.TooDark, false);
+					entry.dirty = true;
 					cleared++;
 				}
 			}
@@ -133,14 +186,39 @@ namespace VDF.Core.Utils {
 			int oldCount = Database.Count;
 			var st = Stopwatch.StartNew();
 
-			Database.RemoveWhere(a => !File.Exists(a.Path) || a.Flags.Any(EntryFlags.MetadataError | EntryFlags.ThumbnailError));
-
-			st.Stop();
-			Logger.Instance.Info(
-				$"Database cleanup has finished in: {st.Elapsed}, {oldCount - Database.Count} entries have been removed");
-			SaveDatabase();
+			if (UseSqlite) {
+				int removed = SqliteDb.CleanDatabase();
+				// Also update in-memory set
+				Database.RemoveWhere(a => !File.Exists(a.Path) || a.Flags.Any(EntryFlags.MetadataError | EntryFlags.ThumbnailError));
+				st.Stop();
+				Logger.Instance.Info(
+					$"Database cleanup has finished in: {st.Elapsed}, {removed} entries have been removed");
+			}
+			else {
+				Database.RemoveWhere(a => !File.Exists(a.Path) || a.Flags.Any(EntryFlags.MetadataError | EntryFlags.ThumbnailError));
+				st.Stop();
+				Logger.Instance.Info(
+					$"Database cleanup has finished in: {st.Elapsed}, {oldCount - Database.Count} entries have been removed");
+				SaveDatabase();
+			}
 		}
 		internal static void SaveDatabase() {
+			if (UseSqlite) {
+				SaveDatabaseSqlite();
+				return;
+			}
+			SaveDatabaseLegacy();
+		}
+
+		static void SaveDatabaseSqlite() {
+			Logger.Instance.Info($"Save scanned files to SQLite ({Database.Count:N0} files).");
+			SqliteDb.SaveFileEntries(Database);
+			foreach (var entry in Database) {
+				entry.dirty = false;
+			}
+		}
+
+		static void SaveDatabaseLegacy() {
 			Logger.Instance.Info($"Save scanned files to disk ({Database.Count:N0} files).");
 
 			using (FileStream stream = new(TempDatabasePath, FileMode.Create)) {
@@ -152,18 +230,41 @@ namespace VDF.Core.Utils {
 		}
 		internal static void ClearDatabase() {
 			Database.Clear();
-			SaveDatabase();
+			if (UseSqlite)
+				SqliteDb.ClearAllEntries();
+			else
+				SaveDatabase();
 		}
 		internal static void BlacklistFileEntry(string filePath) {
 			if (!Database.TryGetValue(new FileEntry(filePath), out FileEntry? actualValue))
 				return;
 			actualValue.Flags.Set(EntryFlags.ManuallyExcluded);
+			actualValue.dirty = true;
 		}
 		internal static void UpdateFilePath(string newPath, FileEntry dbEntry) {
 			Database.Remove(dbEntry);
+			if (UseSqlite)
+				SqliteDb.RemoveFileEntry(dbEntry.Path);
 			dbEntry.Path = newPath;
 			Database.Add(dbEntry);
+			if (UseSqlite)
+				SqliteDb.SaveFileEntry(dbEntry);
 		}
+
+		// ---- DuplicateItems SQLite persistence ----
+
+		internal static void SaveDuplicateItems(HashSet<DuplicateItem> items) {
+			if (!UseSqlite) return;
+			SqliteDb.SaveDuplicateItems(items);
+		}
+
+		internal static HashSet<DuplicateItem> LoadDuplicateItems() {
+			if (!UseSqlite) return new HashSet<DuplicateItem>();
+			return SqliteDb.LoadDuplicateItems();
+		}
+
+		// ---- JSON export/import (unchanged) ----
+
 		// Typed JsonTypeInfo overloads only: the generic overloads carry
 		// RequiresUnreferencedCode/RequiresDynamicCode and pollute Native AOT publish
 		// logs even though metadata is source-generated. WriteIndented is the only
@@ -204,6 +305,33 @@ namespace VDF.Core.Utils {
 				return false;
 			}
 			return true;
+		}
+
+		/// <summary>Dispose the SQLite connection if it was created.</summary>
+		internal static void CloseSqlite() {
+			_sqliteDb?.Dispose();
+			_sqliteDb = null;
+		}
+
+		/// <summary>
+		/// Loads heavy fields (grayBytes, PHashes, mediaInfo, AudioFingerprint)
+		/// for a FileEntry from the database. If the entry was loaded in lightweight
+		/// mode, this populates its large fields on demand. Idempotent — calling
+		/// multiple times is safe.
+		/// </summary>
+		internal static void EnsureHeavyFieldsLoaded(FileEntry entry) {
+			if (entry._heavyFieldsLoaded) return;
+
+			var heavy = SqliteDb.LoadFileEntryHeavy(entry.Path);
+			if (heavy != null) {
+				entry.grayBytes = heavy.grayBytes;
+				entry.PHashes = heavy.PHashes;
+				if (entry.mediaInfo == null)
+					entry.mediaInfo = heavy.mediaInfo;
+				if (entry.AudioFingerprint == null)
+					entry.AudioFingerprint = heavy.AudioFingerprint;
+			}
+			entry._heavyFieldsLoaded = true;
 		}
 	}
 }

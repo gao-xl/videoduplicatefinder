@@ -48,6 +48,16 @@ namespace VDF.Core {
 
 		public FFTools.FFHardwareAccelerationMode HardwareAccelerationMode;
 
+		/// <summary>
+		/// When true and <see cref="UseNativeFfmpegBinding"/> is true, automatically detect
+		/// and use the best available hardware acceleration method at runtime. When the
+		/// <see cref="HardwareAccelerationMode"/> is set to a specific value other than
+		/// <see cref="FFTools.FFHardwareAccelerationMode.none"/> or
+		/// <see cref="FFTools.FFHardwareAccelerationMode.auto"/>, that explicit choice
+		/// takes precedence over auto-detection.
+		/// </summary>
+		public bool AutoDetectHardwareAcceleration = true;
+
 		public byte Threshhold = 5;
 		public float Percent = 96f;
 		public double PercentDurationDifference = 20d;
@@ -70,6 +80,21 @@ namespace VDF.Core {
 		public bool FilterByFileSize;
 		public int MaximumFileSize;
 		public int MinimumFileSize;
+
+		/// <summary>
+		/// When non-zero, files whose size differs by more than this percentage are
+		/// skipped during comparison. E.g. 50 means files must be within ±50% of each
+		/// other's size. 0 = disabled (default, backward compatible).
+		/// </summary>
+		public double FileSizeTolerancePercent;
+
+		/// <summary>
+		/// When true, files whose resolution (width × height) differs significantly
+		/// are skipped during comparison. Two files are considered resolution-compatible
+		/// if the smaller resolution is at least 50% of the larger one's pixel count.
+		/// Default true.
+		/// </summary>
+		public bool EnableResolutionPreFilter = true;
 
 		// ── Partial clip detection ──────────────────────────────────────────────
 		/// <summary>Enable audio-fingerprint-based partial clip detection.</summary>
@@ -97,6 +122,19 @@ namespace VDF.Core {
 		/// 32×32 grayscale percentage difference.
 		/// </summary>
 		public double PartialClipVisualThreshold = 0.85;
+
+		// ── Network path resilience ──────────────────────────────────────────
+		/// <summary>
+		/// Timeout in seconds for directory enumeration on network paths (SMB/NFS).
+		/// When a network path cannot be enumerated within this time, it is skipped
+		/// instead of hanging the scan. Default 30 seconds.
+		/// </summary>
+		public int NetworkPathTimeoutSeconds = 30;
+		/// <summary>
+		/// Maximum number of retry attempts for transient network errors during scanning.
+		/// Each retry uses exponential backoff (1s, 2s, 4s, …). Default 3.
+		/// </summary>
+		public int NetworkRetryCount = 3;
 
 		// ── Database checkpoints ────────────────────────────────────────────
 		/// <summary>

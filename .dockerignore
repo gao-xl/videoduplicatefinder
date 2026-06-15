@@ -1,0 +1,34 @@
+# Build outputs
+**/bin/
+**/obj/
+**/dist/
+
+# Node.js
+**/node_modules/
+VDF.Web.Client/node_modules/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+!README.md
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

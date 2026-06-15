@@ -10,66 +10,76 @@
         MinHeight="320"
         WindowStartupLocation="CenterOwner"
         Title="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.Title]}">
-    <DockPanel Margin="12">
-        <TextBlock DockPanel.Dock="Top"
-                   Text="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.Description]}"
-                   TextWrapping="Wrap"
-                   Margin="0,0,0,8" />
-        <TextBlock DockPanel.Dock="Top"
-                   Text="{Binding GroupCountText}"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,8" />
+    <Border Classes="dialog-root">
+        <DockPanel>
+            <!-- Header info -->
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="20,16,20,0">
+                <TextBlock
+                    Text="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.Description]}"
+                    TextWrapping="Wrap"
+                    Foreground="{DynamicResource TextSecondaryBrush}"
+                    FontSize="12" />
+                <TextBlock
+                    Text="{Binding GroupCountText}"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource TextPrimaryBrush}" />
+                <TextBlock
+                    Text="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.Empty]}"
+                    IsVisible="{Binding IsEmpty}"
+                    Foreground="{DynamicResource TextTertiaryBrush}"
+                    FontStyle="Italic"
+                    FontSize="12" />
+            </StackPanel>
 
-        <!-- Empty-state hint -->
-        <TextBlock DockPanel.Dock="Top"
-                   Text="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.Empty]}"
-                   IsVisible="{Binding IsEmpty}"
-                   Foreground="Gray"
-                   FontStyle="Italic"
-                   Margin="0,0,0,8" />
+            <!-- Status message -->
+            <TextBlock DockPanel.Dock="Bottom"
+                       Text="{Binding StatusMessage}"
+                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Foreground="{DynamicResource TextTertiaryBrush}"
+                       FontSize="12"
+                       Margin="20,0,20,4" />
 
-        <!-- Status / result message -->
-        <TextBlock DockPanel.Dock="Bottom"
-                   Text="{Binding StatusMessage}"
-                   IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                   Foreground="Gray"
-                   Margin="0,8,0,0" />
+            <!-- Action bar -->
+            <Border DockPanel.Dock="Bottom" Classes="dialog-actions">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button Classes="btn-ghost"
+                            Content="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.UnmarkSelected]}"
+                            Command="{Binding UnmarkSelectedCommand}"
+                            CommandParameter="{Binding ElementName=EntriesListBox, Path=SelectedItems}" />
+                    <Button Classes="btn-ghost"
+                            Content="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.PruneMissing]}"
+                            ToolTip.Tip="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.PruneMissingTooltip]}"
+                            Command="{Binding PruneMissingFilesCommand}" />
+                    <Button Classes="btn-danger"
+                            Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.ClearAll]}"
+                            Command="{Binding ClearAllCommand}" />
+                    <Button Classes="btn-ghost"
+                            MinWidth="80"
+                            IsCancel="True"
+                            Click="Close_Click"
+                            Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Close]}" />
+                </StackPanel>
+            </Border>
 
-        <!-- Action buttons -->
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.UnmarkSelected]}"
-                    Margin="0,0,8,0"
-                    Command="{Binding UnmarkSelectedCommand}"
-                    CommandParameter="{Binding ElementName=EntriesListBox, Path=SelectedItems}" />
-            <Button Content="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.PruneMissing]}"
-                    Margin="0,0,8,0"
-                    ToolTip.Tip="{Binding Source={x:Static app:App.Lang}, Path=[BlacklistManager.PruneMissingTooltip]}"
-                    Command="{Binding PruneMissingFilesCommand}" />
-            <Button Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.ClearAll]}"
-                    Margin="0,0,8,0"
-                    Command="{Binding ClearAllCommand}" />
-            <Button Content="{Binding Source={x:Static app:App.Lang}, Path=[Dialog.Close]}"
-                    Width="80"
-                    IsCancel="True"
-                    Click="Close_Click" />
-        </StackPanel>
-
-        <!-- Entries list -->
-        <Border BorderBrush="Gray" BorderThickness="1">
-            <ListBox x:Name="EntriesListBox"
-                     ItemsSource="{Binding Entries}"
-                     SelectionMode="Multiple">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:BlacklistEntryVM">
-                        <StackPanel Margin="2">
-                            <TextBlock Text="{Binding PathsDisplay}"
-                                       FontFamily="Consolas, Menlo, monospace"
-                                       FontSize="12"
-                                       TextWrapping="NoWrap" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </Border>
-    </DockPanel>
+            <!-- Entries list -->
+            <Border Margin="20,8,20,8"
+                    CornerRadius="8"
+                    ClipToBounds="True">
+                <ListBox x:Name="EntriesListBox"
+                         ItemsSource="{Binding Entries}"
+                         SelectionMode="Multiple">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:BlacklistEntryVM">
+                            <StackPanel Margin="4,2">
+                                <TextBlock Text="{Binding PathsDisplay}"
+                                           FontFamily="Consolas, Menlo, monospace"
+                                           FontSize="12"
+                                           TextWrapping="NoWrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+        </DockPanel>
+    </Border>
 </Window>

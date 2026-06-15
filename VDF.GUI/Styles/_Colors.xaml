@@ -2,46 +2,194 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:actipro="http://schemas.actiprosoftware.com/avaloniaui">
 
-    <!-- Semantic color tokens for modern UI styling -->
-    <!-- These adapt automatically to dark/light mode via ThemeResource -->
+    <!-- Modern color tokens for refined, contemporary UI styling -->
+    <!-- Dark theme is the default, consistent with the Web UI -->
+    <!-- Light theme overrides are applied via RequestedThemeVariant selector -->
 
     <Styles.Resources>
+        <!-- ===== Accent Colors ===== -->
+        <Color x:Key="AccentBlue">#6C5CE7</Color>
+        <Color x:Key="AccentPurple">#A855F7</Color>
+        <Color x:Key="AccentGradientStart">#6C5CE7</Color>
+        <Color x:Key="AccentGradientEnd">#A855F7</Color>
+
+        <!-- ===== Surface & Background Colors (Dark) ===== -->
+        <Color x:Key="SurfacePrimary">#1A1B2E</Color>
+        <Color x:Key="SurfaceSecondary">#232438</Color>
+        <Color x:Key="SurfaceTertiary">#2D2E45</Color>
+        <Color x:Key="SurfaceElevated">#353650</Color>
+
+        <!-- ===== Text Colors (Dark) ===== -->
+        <Color x:Key="TextPrimary">#E8E9F3</Color>
+        <Color x:Key="TextSecondary">#9CA0B8</Color>
+        <Color x:Key="TextTertiary">#6B6F87</Color>
+
+        <!-- ===== Border Colors (Dark) ===== -->
+        <Color x:Key="BorderSubtle">#2D2E45</Color>
+        <Color x:Key="BorderDefault">#3D3E55</Color>
+        <Color x:Key="BorderStrong">#4D4E65</Color>
+
+        <!-- ===== Shadow Colors ===== -->
+        <Color x:Key="ShadowLight">#000000</Color>
+        <Color x:Key="ShadowMedium">#000000</Color>
+
+        <!-- ===== Semantic Brushes (Dark default) ===== -->
+
+        <!-- Accent brushes -->
+        <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentBlue}" />
+        <SolidColorBrush x:Key="AccentBrushHover" Color="#7D6FF0" />
+        <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
+
+        <!-- Surface brushes -->
+        <SolidColorBrush x:Key="SurfacePrimaryBrush" Color="{DynamicResource SurfacePrimary}" />
+        <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="{DynamicResource SurfaceSecondary}" />
+        <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{DynamicResource SurfaceTertiary}" />
+        <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{DynamicResource SurfaceElevated}" />
+
+        <!-- Text brushes -->
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimary}" />
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondary}" />
+        <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextTertiary}" />
+
+        <!-- Border brushes -->
+        <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource BorderSubtle}" />
+        <SolidColorBrush x:Key="BorderDefaultBrush" Color="{DynamicResource BorderDefault}" />
+        <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrong}" />
+
+        <!-- Shadow brushes -->
+        <SolidColorBrush x:Key="ShadowLightBrush" Color="{DynamicResource ShadowLight}" Opacity="0.08" />
+        <SolidColorBrush x:Key="ShadowMediumBrush" Color="{DynamicResource ShadowMedium}" Opacity="0.16" />
+
         <!-- Property quality indicators -->
-        <SolidColorBrush x:Key="MetaBestForeground" Color="#4CAF50" />
-        <SolidColorBrush x:Key="MetaWorstForeground" Color="#F44336" />
+        <SolidColorBrush x:Key="MetaBestForeground" Color="#4ADE80" />
+        <SolidColorBrush x:Key="MetaWorstForeground" Color="#F87171" />
 
         <!-- Similarity badge backgrounds (Dark theme) -->
-        <SolidColorBrush x:Key="BadgeHighBackground" Color="#1B5E20" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeHighForeground" Color="#A5D6A7" />
-        <SolidColorBrush x:Key="BadgeMediumBackground" Color="#0D47A1" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeMediumForeground" Color="#90CAF9" />
-        <SolidColorBrush x:Key="BadgeLowBackground" Color="#E65100" Opacity="0.85" />
-        <SolidColorBrush x:Key="BadgeLowForeground" Color="#FFCC80" />
+        <SolidColorBrush x:Key="BadgeHighBackground" Color="#166534" Opacity="0.85" />
+        <SolidColorBrush x:Key="BadgeHighForeground" Color="#86EFAC" />
+        <SolidColorBrush x:Key="BadgeMediumBackground" Color="#1E3A5F" Opacity="0.85" />
+        <SolidColorBrush x:Key="BadgeMediumForeground" Color="#93C5FD" />
+        <SolidColorBrush x:Key="BadgeLowBackground" Color="#7C2D12" Opacity="0.85" />
+        <SolidColorBrush x:Key="BadgeLowForeground" Color="#FDBA74" />
 
         <!-- DataGrid row hover -->
         <SolidColorBrush x:Key="RowHoverBackground" Color="#FFFFFF" Opacity="0.04" />
-        <SolidColorBrush x:Key="RowSelectedBackground" Color="#FFFFFF" Opacity="0.08" />
+        <SolidColorBrush x:Key="RowSelectedBackground" Color="#6C5CE7" Opacity="0.12" />
 
         <!-- Best quality badge -->
-        <SolidColorBrush x:Key="BestBadgeBackground" Color="#2E7D32" Opacity="0.9" />
-        <SolidColorBrush x:Key="BestBadgeForeground" Color="#C8E6C9" />
+        <SolidColorBrush x:Key="BestBadgeBackground" Color="#166534" Opacity="0.9" />
+        <SolidColorBrush x:Key="BestBadgeForeground" Color="#BBF7D0" />
+
+        <!-- Card styles -->
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="{DynamicResource SurfaceSecondary}" />
+        <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource BorderSubtle}" />
+        <SolidColorBrush x:Key="CardHoverBorderBrush" Color="{DynamicResource BorderDefault}" />
+        <SolidColorBrush x:Key="CardSelectedBorderBrush" Color="{DynamicResource AccentBlue}" />
+
+        <!-- Button styles -->
+        <SolidColorBrush x:Key="ButtonPrimaryBackground" Color="{DynamicResource AccentBlue}" />
+        <SolidColorBrush x:Key="ButtonPrimaryForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ButtonDangerBackground" Color="#DC2626" />
+        <SolidColorBrush x:Key="ButtonDangerForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ButtonGhostBorderBrush" Color="{DynamicResource BorderDefault}" />
+        <SolidColorBrush x:Key="ButtonGhostForegroundBrush" Color="{DynamicResource TextPrimary}" />
+
+        <!-- Group header -->
+        <SolidColorBrush x:Key="GroupHeaderBackground" Color="{DynamicResource SurfaceTertiary}" />
+        <SolidColorBrush x:Key="GroupHeaderBorderBrush" Color="{DynamicResource BorderSubtle}" />
     </Styles.Resources>
 
-    <!-- Light theme overrides -->
+    <!-- ===== Light Theme Overrides ===== -->
     <Style Selector="Window[RequestedThemeVariant=Light]">
         <Style.Resources>
-            <SolidColorBrush x:Key="BadgeHighBackground" Color="#C8E6C9" />
-            <SolidColorBrush x:Key="BadgeHighForeground" Color="#1B5E20" />
-            <SolidColorBrush x:Key="BadgeMediumBackground" Color="#BBDEFB" />
-            <SolidColorBrush x:Key="BadgeMediumForeground" Color="#0D47A1" />
-            <SolidColorBrush x:Key="BadgeLowBackground" Color="#FFE0B2" />
-            <SolidColorBrush x:Key="BadgeLowForeground" Color="#E65100" />
+            <!-- Surface & Background Colors (Light) -->
+            <Color x:Key="SurfacePrimary">#FFFFFF</Color>
+            <Color x:Key="SurfaceSecondary">#F8F9FC</Color>
+            <Color x:Key="SurfaceTertiary">#F0F1F5</Color>
+            <Color x:Key="SurfaceElevated">#E8E9F0</Color>
 
+            <!-- Text Colors (Light) -->
+            <Color x:Key="TextPrimary">#1A1B2E</Color>
+            <Color x:Key="TextSecondary">#5A5D72</Color>
+            <Color x:Key="TextTertiary">#8B8EA2</Color>
+
+            <!-- Border Colors (Light) -->
+            <Color x:Key="BorderSubtle">#E8E9F0</Color>
+            <Color x:Key="BorderDefault">#D4D5DE</Color>
+            <Color x:Key="BorderStrong">#B8B9C5</Color>
+
+            <!-- Shadow Colors (Light) -->
+            <Color x:Key="ShadowLight">#000000</Color>
+            <Color x:Key="ShadowMedium">#000000</Color>
+
+            <!-- Accent stays the same but slightly adjusted for light backgrounds -->
+            <Color x:Key="AccentBlue">#5B4BD5</Color>
+            <Color x:Key="AccentPurple">#9333EA</Color>
+            <Color x:Key="AccentGradientStart">#5B4BD5</Color>
+            <Color x:Key="AccentGradientEnd">#9333EA</Color>
+
+            <!-- Accent brushes (light) -->
+            <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentBlue}" />
+            <SolidColorBrush x:Key="AccentBrushHover" Color="#6C5CE7" />
+            <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF" />
+
+            <!-- Surface brushes (light) -->
+            <SolidColorBrush x:Key="SurfacePrimaryBrush" Color="{DynamicResource SurfacePrimary}" />
+            <SolidColorBrush x:Key="SurfaceSecondaryBrush" Color="{DynamicResource SurfaceSecondary}" />
+            <SolidColorBrush x:Key="SurfaceTertiaryBrush" Color="{DynamicResource SurfaceTertiary}" />
+            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{DynamicResource SurfaceElevated}" />
+
+            <!-- Text brushes (light) -->
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimary}" />
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondary}" />
+            <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextTertiary}" />
+
+            <!-- Border brushes (light) -->
+            <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource BorderSubtle}" />
+            <SolidColorBrush x:Key="BorderDefaultBrush" Color="{DynamicResource BorderDefault}" />
+            <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource BorderStrong}" />
+
+            <!-- Shadow brushes (light) -->
+            <SolidColorBrush x:Key="ShadowLightBrush" Color="{DynamicResource ShadowLight}" Opacity="0.06" />
+            <SolidColorBrush x:Key="ShadowMediumBrush" Color="{DynamicResource ShadowMedium}" Opacity="0.10" />
+
+            <!-- Property quality indicators (light) -->
+            <SolidColorBrush x:Key="MetaBestForeground" Color="#16A34A" />
+            <SolidColorBrush x:Key="MetaWorstForeground" Color="#DC2626" />
+
+            <!-- Similarity badges (light) -->
+            <SolidColorBrush x:Key="BadgeHighBackground" Color="#DCFCE7" />
+            <SolidColorBrush x:Key="BadgeHighForeground" Color="#166534" />
+            <SolidColorBrush x:Key="BadgeMediumBackground" Color="#DBEAFE" />
+            <SolidColorBrush x:Key="BadgeMediumForeground" Color="#1E3A5F" />
+            <SolidColorBrush x:Key="BadgeLowBackground" Color="#FFF7ED" />
+            <SolidColorBrush x:Key="BadgeLowForeground" Color="#7C2D12" />
+
+            <!-- DataGrid row hover (light) -->
             <SolidColorBrush x:Key="RowHoverBackground" Color="#000000" Opacity="0.04" />
-            <SolidColorBrush x:Key="RowSelectedBackground" Color="#000000" Opacity="0.08" />
+            <SolidColorBrush x:Key="RowSelectedBackground" Color="#5B4BD5" Opacity="0.08" />
 
-            <SolidColorBrush x:Key="BestBadgeBackground" Color="#C8E6C9" />
-            <SolidColorBrush x:Key="BestBadgeForeground" Color="#1B5E20" />
+            <!-- Best quality badge (light) -->
+            <SolidColorBrush x:Key="BestBadgeBackground" Color="#DCFCE7" />
+            <SolidColorBrush x:Key="BestBadgeForeground" Color="#166534" />
+
+            <!-- Card styles (light) -->
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="{DynamicResource SurfaceSecondary}" />
+            <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource BorderSubtle}" />
+            <SolidColorBrush x:Key="CardHoverBorderBrush" Color="{DynamicResource BorderDefault}" />
+            <SolidColorBrush x:Key="CardSelectedBorderBrush" Color="{DynamicResource AccentBlue}" />
+
+            <!-- Button styles (light) -->
+            <SolidColorBrush x:Key="ButtonPrimaryBackground" Color="{DynamicResource AccentBlue}" />
+            <SolidColorBrush x:Key="ButtonPrimaryForeground" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="ButtonDangerBackground" Color="#DC2626" />
+            <SolidColorBrush x:Key="ButtonDangerForeground" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="ButtonGhostBorderBrush" Color="{DynamicResource BorderDefault}" />
+            <SolidColorBrush x:Key="ButtonGhostForegroundBrush" Color="{DynamicResource TextPrimary}" />
+
+            <!-- Group header (light) -->
+            <SolidColorBrush x:Key="GroupHeaderBackground" Color="{DynamicResource SurfaceTertiary}" />
+            <SolidColorBrush x:Key="GroupHeaderBorderBrush" Color="{DynamicResource BorderSubtle}" />
         </Style.Resources>
     </Style>
 </Styles>

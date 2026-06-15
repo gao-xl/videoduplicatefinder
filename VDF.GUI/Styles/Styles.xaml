@@ -17,6 +17,7 @@
     <StyleInclude Source="avares://VDF.GUI/Styles/_Buttons.xaml" />
     <StyleInclude Source="avares://VDF.GUI/Styles/_Badges.xaml" />
     <StyleInclude Source="avares://VDF.GUI/Styles/_GroupHeader.xaml" />
+    <StyleInclude Source="avares://VDF.GUI/Styles/_Cards.xaml" />
 
     <Style Selector="TextBlock.code">
         <Setter Property="FontFamily" Value="{StaticResource CodeFontFamily}" />
@@ -24,5 +25,241 @@
 
     <Style Selector="Window[WindowState=Maximized]">
         <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <!-- ===== Modern base styles for common controls ===== -->
+
+    <!-- TextBox modernization -->
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- ComboBox modernization -->
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <!-- CheckBox modernization -->
+    <Style Selector="CheckBox">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- TabControl modernization -->
+    <Style Selector="TabItem">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Border modernization for settings containers -->
+    <Style Selector="Border.settings-panel">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <!-- ===== ListBox modernization ===== -->
+    <Style Selector="ListBox">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Margin" Value="2,1" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="ListBoxItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource RowHoverBackground}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource RowSelectedBackground}" />
+    </Style>
+
+    <!-- ===== ProgressBar modernization ===== -->
+    <Style Selector="ProgressBar">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
+    </Style>
+
+    <!-- ===== ScrollViewer modernization ===== -->
+    <Style Selector="ScrollViewer">
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <!-- ===== Slider modernization ===== -->
+    <Style Selector="Slider">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.12" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- ===== NumericUpDown modernization ===== -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <!-- ===== Menu modernization ===== -->
+    <Style Selector="Menu">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="4,2" />
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.1" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- ===== Separator modernization ===== -->
+    <Style Selector="Separator">
+        <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="Margin" Value="4,2" />
+    </Style>
+
+    <!-- ===== ToolTip modernization ===== -->
+    <Style Selector="ToolTip">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="8,5" />
+    </Style>
+
+    <!-- ===== Dialog window base style ===== -->
+    <Style Selector="Border.dialog-root">
+        <Setter Property="Background" Value="{DynamicResource SurfacePrimaryBrush}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- ===== Section header style ===== -->
+    <Style Selector="TextBlock.section-title">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+
+    <!-- ===== Section subtitle / hint style ===== -->
+    <Style Selector="TextBlock.section-hint">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- ===== Dialog action bar ===== -->
+    <Style Selector="Border.dialog-actions">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="CornerRadius" Value="0,0,12,12" />
+    </Style>
+
+    <!-- ===== Input field group ===== -->
+    <Style Selector="StackPanel.field-group">
+        <Setter Property="Spacing" Value="6" />
+    </Style>
+    <Style Selector="TextBlock.field-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <!-- ===== Status bar style ===== -->
+    <Style Selector="Border.status-bar">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="12,6" />
+    </Style>
+
+    <!-- ===== Filter bar style ===== -->
+    <Style Selector="Border.filter-bar">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,1" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <!-- ===== Toolbar style ===== -->
+    <Style Selector="Border.toolbar">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+
+    <!-- ===== Icon button style ===== -->
+    <Style Selector="Button.icon-btn">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.1" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.icon-btn:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
+    </Style>
+    <Style Selector="Button.icon-btn:pressed">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    </Style>
+
+    <!-- ===== Divider line ===== -->
+    <Style Selector="Border.divider">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="Margin" Value="0,8" />
+    </Style>
+
+    <!-- ===== Vertical divider ===== -->
+    <Style Selector="Border.vdivider">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="Margin" Value="8,0" />
     </Style>
 </Styles>

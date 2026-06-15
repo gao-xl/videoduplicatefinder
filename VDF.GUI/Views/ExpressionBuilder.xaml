@@ -17,84 +17,81 @@
     SizeToContent="WidthAndHeight"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="300" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <TextBox
-            Grid.Row="0"
-            Margin="10,20,10,20"
-            IsReadOnly="True"
-            Text="{Binding AvailableProperties}"
-            TextWrapping="Wrap" />
-        <Grid Grid.Row="1" Margin="5,0,5,5">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <TextBlock
-                Grid.Column="0"
-                VerticalAlignment="Center"
-                Text="{Binding Source={x:Static local:App.Lang}, Path=[ExpressionBuilder.ExpressionLabel]}" />
-            <AutoCompleteBox
-                x:Name="ExpressionHistoryInput"
-                Grid.Column="1"
-                Margin="5,0,0,0"
-                ItemsSource="{Binding ExpressionHistory}"
-                Text="{Binding ExpressionText, Mode=TwoWay}" />
-        </Grid>
-        <Grid Grid.Row="2" Margin="5,0,5,5">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock
-                Grid.Column="0"
-                Margin="0,0,5,0"
-                VerticalAlignment="Center"
-                Text="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Label]}" />
-            <ComboBox
-                Grid.Column="1"
-                ItemsSource="{Binding ExpressionPresets}"
-                SelectedItem="{Binding SelectedPreset}">
-                <ComboBox.DisplayMemberBinding>
-                    <Binding Path="Name" DataType="data:ExpressionPreset" />
-                </ComboBox.DisplayMemberBinding>
-            </ComboBox>
-            <Button
-                Grid.Column="2"
-                Margin="5,0"
-                Command="{Binding SavePresetCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Save]}" />
-            <Button
-                Grid.Column="3"
-                Command="{Binding DeletePresetCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Delete]}" />
-        </Grid>
-        <Grid Grid.Row="3" Margin="5,0,5,5">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Button
-                Grid.Column="1"
-                Width="100"
-                Margin="5"
-                Command="{Binding OKCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.OK]}" />
-            <Button
-                Grid.Column="2"
-                Width="100"
-                Margin="5"
-                Command="{Binding CancelCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Cancel]}" />
-        </Grid>
-    </Grid>
+    <Border Classes="dialog-root">
+        <StackPanel>
+            <!-- Content area -->
+            <StackPanel Spacing="12" Padding="24,20">
+                <!-- Available properties -->
+                <Border
+                    Background="{DynamicResource SurfaceTertiaryBrush}"
+                    CornerRadius="8"
+                    Padding="12"
+                    MaxHeight="200">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <TextBlock
+                            IsReadOnly="True"
+                            Text="{Binding AvailableProperties}"
+                            TextWrapping="Wrap"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Expression input -->
+                <StackPanel Spacing="6">
+                    <TextBlock
+                        Classes="field-label"
+                        Text="{Binding Source={x:Static local:App.Lang}, Path=[ExpressionBuilder.ExpressionLabel]}" />
+                    <AutoCompleteBox
+                        x:Name="ExpressionHistoryInput"
+                        ItemsSource="{Binding ExpressionHistory}"
+                        Text="{Binding ExpressionText, Mode=TwoWay}" />
+                </StackPanel>
+
+                <!-- Preset selector -->
+                <Border Classes="settings-panel" Padding="12">
+                    <Grid ColumnDefinitions="Auto,8,*,8,Auto,8,Auto">
+                        <TextBlock
+                            Grid.Column="0"
+                            Classes="field-label"
+                            VerticalAlignment="Center"
+                            Text="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Label]}" />
+                        <ComboBox
+                            Grid.Column="2"
+                            ItemsSource="{Binding ExpressionPresets}"
+                            SelectedItem="{Binding SelectedPreset}">
+                            <ComboBox.DisplayMemberBinding>
+                                <Binding Path="Name" DataType="data:ExpressionPreset" />
+                            </ComboBox.DisplayMemberBinding>
+                        </ComboBox>
+                        <Button
+                            Grid.Column="4"
+                            Classes="btn-ghost"
+                            Command="{Binding SavePresetCommand}"
+                            Content="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Save]}" />
+                        <Button
+                            Grid.Column="6"
+                            Classes="btn-ghost"
+                            Command="{Binding DeletePresetCommand}"
+                            Content="{Binding Source={x:Static local:App.Lang}, Path=[Preset.Delete]}" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+            <!-- Action bar -->
+            <Border Classes="dialog-actions">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                    <Button
+                        Classes="btn-primary"
+                        MinWidth="100"
+                        Command="{Binding OKCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.OK]}" />
+                    <Button
+                        Classes="btn-ghost"
+                        MinWidth="100"
+                        Command="{Binding CancelCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Cancel]}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
 </Window>

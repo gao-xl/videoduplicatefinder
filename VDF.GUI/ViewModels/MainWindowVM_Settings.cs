@@ -275,6 +275,10 @@ namespace VDF.GUI.ViewModels {
 				.ToList();
 		}
 
+		public ReactiveCommand<Unit, Unit> ToggleThemeCommand => ReactiveCommand.Create(() => {
+			Utils.ThemeManager.ToggleTheme();
+		});
+
 		static string GetLanguageDisplayName(string code) {
 			try {
 				return CultureInfo.GetCultureInfo(code).NativeName;

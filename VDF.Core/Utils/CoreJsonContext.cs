@@ -15,6 +15,7 @@
 //
 
 using System.Text.Json.Serialization;
+using VDF.Core.ViewModels;
 
 namespace VDF.Core.Utils {
 	/// <summary>
@@ -30,6 +31,7 @@ namespace VDF.Core.Utils {
 	[JsonSerializable(typeof(Settings))]
 	[JsonSerializable(typeof(BlacklistStore.Envelope))]
 	[JsonSerializable(typeof(List<HashSet<string>>))]
+	[JsonSerializable(typeof(HashSet<DuplicateItem>))]
 	public partial class CoreJsonContext : JsonSerializerContext { }
 
 	/// <summary>WriteIndented twin of <see cref="CoreJsonContext"/> for pretty database exports.</summary>

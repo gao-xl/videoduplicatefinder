@@ -2,24 +2,38 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:actipro="http://schemas.actiprosoftware.com/avaloniaui">
 
+    <!-- ===== Group header modernization ===== -->
     <!-- Hover effect on group header buttons -->
     <Style Selector="DataGridRowGroupHeader Button.group-action">
-        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="Padding" Value="8,4" />
         <Setter Property="FontSize" Value="11" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="{actipro:ThemeResource Container3BorderBrush}" />
-        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderDefaultBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Opacity" Value="0.7" />
         <Setter Property="Transitions">
             <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseInOut" />
             </Transitions>
         </Setter>
     </Style>
     <Style Selector="DataGridRowGroupHeader Button.group-action:pointerover">
-        <Setter Property="Background" Value="{actipro:ThemeResource Container3BackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
         <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- ===== Group header container styling ===== -->
+    <Style Selector="DataGridRowGroupHeader">
+        <Setter Property="Background" Value="{DynamicResource GroupHeaderBackground}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
     </Style>
 </Styles>

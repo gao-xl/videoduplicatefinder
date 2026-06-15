@@ -1,0 +1,32 @@
+- [ ] 多位置 pHash 预筛：TryBuildCompareSnapshot 为所有采样位置计算并缓存 pHash，CheckIfDuplicate 使用所有位置 pHash 预筛
+- [ ] 多位置 pHash 预筛：CreateFlippedGrayBytes 同步生成所有位置的 flipped pHash
+- [ ] 多位置 pHash 预筛：ScanEngine_Diagnostic.TestFilePair 适配多位置 pHash
+- [ ] 多位置 pHash 预筛：单元测试覆盖单位置兼容和多位位置预筛逻辑
+- [ ] 候选预筛增强：Settings 中添加 FileSizeTolerancePercent 和 EnableResolutionPreFilter 配置项
+- [ ] 候选预筛增强：CompareEntry/CompareVideosLinear/CompareImages 中添加文件大小预筛
+- [ ] 候选预筛增强：候选循环中添加分辨率预筛（比较 Width*Height）
+- [ ] 候选预筛增强：文件大小和分辨率预筛的单元测试
+- [ ] Daisy-chain 优化：ScanForDuplicates 收集已比较且相似的文件对到 comparedPairs
+- [ ] Daisy-chain 优化：SplitDaisyChainGroups 优先从 comparedPairs 查找，未找到时才调用 CheckIfDuplicate
+- [ ] Daisy-chain 优化：大组（>20 成员）增量剪枝实现
+- [ ] Daisy-chain 优化：ScanForDuplicates 结束后释放 comparedPairs
+- [ ] Daisy-chain 优化：单元测试验证优化后拆分结果与原实现一致
+- [ ] 数据库增量保存：FileEntry 添加 dirty 标记，字段修改时设置
+- [ ] 数据库增量保存：SqliteDatabase.SaveDirtyFileEntries 方法仅保存 dirty 条目
+- [ ] 数据库增量保存：DatabaseUtils.SaveDatabase 支持增量/全量模式
+- [ ] 数据库增量保存：TryDatabaseCheckpoint 使用增量保存
+- [ ] 数据库增量保存：保存后清除 dirty 标记
+- [ ] 数据库增量保存：单元测试验证增量保存正确性
+- [ ] 数据库延迟加载：SqliteDatabase.LoadFileEntries 支持轻量模式
+- [ ] 数据库延迟加载：SqliteDatabase.LoadFileEntryHeavy 按路径加载完整数据
+- [ ] 数据库延迟加载：BuildFileList 使用轻量模式，GatherInfos 按需加载
+- [ ] 数据库延迟加载：TryBuildCompareSnapshot 触发延迟加载
+- [ ] 数据库延迟加载：单元测试验证延迟加载正确性
+- [ ] GatherInfos 路径检查优化：有序集合或前缀树替代线性 StartsWith 遍历
+- [ ] GatherInfos 路径检查优化：PrepareSearch 中构建优化查找结构
+- [ ] GatherInfos 路径检查优化：替换 InvalidEntry 和 GatherInfos 中的路径检查
+- [ ] GatherInfos 路径检查优化：单元测试验证路径检查结果一致
+- [ ] 基准测试：ComparePhaseProbe 添加多位置 pHash 场景
+- [ ] 基准测试：添加文件大小/分辨率预筛基准场景
+- [ ] 基准测试：添加 Daisy-chain 拆分基准场景
+- [ ] 基准测试：添加数据库增量保存基准场景

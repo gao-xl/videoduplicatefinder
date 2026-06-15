@@ -6,13 +6,22 @@ services:
     # environment:
     #   - VDF_WEB_PASSWORD=changeme   # set a password (otherwise auto-generated — check docker logs)
     #   - VDF_WEB_AUTH=false          # set to disable authentication entirely
+    #   - VDF_BASE_PATH=/vdf          # serve under a sub-path when behind a reverse proxy
+    #   - VDF_API_KEYS=key1,key2      # comma-separated API keys for programmatic access
+    #   - VDF_CORS_ORIGINS=https://example.com,https://app.example.com  # allowed CORS origins
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     volumes:
       # Add your media directories below (host_path:container_path:ro)
       # Example:
       #   - /mnt/nas/movies:/mnt/nas/movies:ro
       #   - "/mnt/path with spaces:/mnt/media:ro"
-      - vdf-db:/root/.config/VDF         # web-settings.json, web-credentials.json
-      - vdf-state:/root/.local/state/VDF # ScannedFiles.db
+      - vdf-db:/app/.config/VDF         # web-settings.json, web-credentials.json
+      - vdf-state:/app/.local/state/VDF  # ScannedFiles.db
 
 volumes:
   vdf-db:

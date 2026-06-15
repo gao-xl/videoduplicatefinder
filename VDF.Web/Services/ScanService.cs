@@ -14,9 +14,12 @@
 // */
 //
 
+using Microsoft.AspNetCore.SignalR;
 using VDF.Core;
 using VDF.Core.Utils;
 using VDF.Core.ViewModels;
+using VDF.Web.Hubs;
+using VDF.Web.Models;
 
 namespace VDF.Web.Services {
 	public enum ScanState { Idle, Scanning, Comparing, Done, Aborted, Error }
@@ -47,6 +50,7 @@ namespace VDF.Web.Services {
 	public sealed class ScanService : IDisposable {
 		readonly ScanEngine _engine = new();
 		readonly WebSettingsService _settingsService;
+		readonly IHubContext<ScanHub>? _hubContext;
 		CancellationTokenSource _cts = new();
 
 		public ScanState State { get; private set; } = ScanState.Idle;
@@ -68,8 +72,9 @@ namespace VDF.Web.Services {
 
 		public event Action? StateChanged;
 
-		public ScanService(WebSettingsService settingsService) {
+		public ScanService(WebSettingsService settingsService, IHubContext<ScanHub>? hubContext = null) {
 			_settingsService = settingsService;
+			_hubContext = hubContext;
 			settingsService.Load(_engine.Settings);
 
 			_engine.FilesEnumerated += (_, _) => Notify();
@@ -411,7 +416,32 @@ namespace VDF.Web.Services {
 			return _engine.TestFilePairAsync(fileA, fileB);
 		}
 
-		void Notify() => StateChanged?.Invoke();
+		void Notify() {
+			StateChanged?.Invoke();
+			// Broadcast via SignalR
+			if (_hubContext != null) {
+				_ = _hubContext.Clients.All.SendAsync("StateChanged", State.ToString());
+				if (LastProgress != null) {
+					var payload = new ScanProgressResponse {
+						State = State.ToString(),
+						FilesHashed = FilesHashed,
+						CurrentFile = LastProgress.CurrentFile,
+						Current = LastProgress.Current,
+						Max = LastProgress.Max,
+						ElapsedSeconds = LastProgress.Elapsed.TotalSeconds,
+						RemainingSeconds = LastProgress.Remaining.TotalSeconds,
+						CurrentStage = LastProgress.CurrentStage,
+						StageCurrent = LastProgress.StageCurrent,
+						StageMax = LastProgress.StageMax,
+						ErrorMessage = ErrorMessage,
+					};
+					_ = _hubContext.Clients.All.SendAsync("ProgressUpdate", payload);
+				}
+				if (FileOpRunning) {
+					_ = _hubContext.Clients.All.SendAsync("FileOpProgress", FileOpCurrent, FileOpMax, FileOpVerb);
+				}
+			}
+		}
 
 		public void Dispose() => _cts.Dispose();
 	}

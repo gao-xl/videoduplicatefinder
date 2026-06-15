@@ -21,5 +21,6 @@ namespace VDF.Web {
 	[JsonSourceGenerationOptions(WriteIndented = true)]
 	[JsonSerializable(typeof(WebSettingsService.Dto))]
 	[JsonSerializable(typeof(AuthService.StoredCredentials))]
+	[JsonSerializable(typeof(JwtService.StoredSigningKey))]
 	internal sealed partial class WebJsonContext : JsonSerializerContext { }
 }

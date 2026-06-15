@@ -180,6 +180,8 @@ Available `--action` strategies:
 
 The Web UI runs as a local web server and is accessed from your browser. It is designed for headless machines, NAS devices, and remote management.
 
+The frontend is a React SPA (Single Page Application) built with Vite and TypeScript, served as static files by the ASP.NET Core backend. It provides a modern, responsive interface for scanning, reviewing results, and managing settings — including real-time scan progress via SignalR and SSE.
+
 > **Security note:** The Web UI is password-protected but intended for local/Docker use only. Do not expose it to the internet.
 
 ### Authentication
@@ -275,6 +277,17 @@ docker run -d \
   ghcr.io/0x90d/vdf-web:latest
 ```
 
+### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `VDF_WEB_PASSWORD` | Set your own password instead of the auto-generated one |
+| `VDF_WEB_AUTH=false` | Disable authentication entirely |
+| `VDF_API_KEYS` | Comma-separated API keys for automation (sent via `X-API-Key` header) |
+| `VDF_BASE_PATH` | Sub-path for reverse proxy deployment (e.g. `/vdf`) |
+| `VDF_CORS_ORIGINS` | Comma-separated CORS allowed origins |
+| `VDF_TLS_CERT` / `VDF_TLS_KEY` | Paths to TLS certificate and key files for HTTPS |
+
 ### docker compose (recommended for permanent installs)
 
 1. Download [`docker-compose.yml`](docker-compose.yml) from this repository.
@@ -315,6 +328,47 @@ docker compose pull && docker compose up -d
 
 ---
 
+# REST API
+
+The Web UI backend exposes a REST API for programmatic access and automation. When running in Development mode, Swagger UI is available at `/swagger` for interactive API exploration.
+
+### Authentication
+
+API requests can be authenticated via:
+- **JWT Bearer token** — obtain via `POST /api/auth/login`, refresh via `POST /api/auth/refresh`
+- **API Key** — set `VDF_API_KEYS` environment variable and send via `X-API-Key` header
+
+### Endpoint groups
+
+| Group | Prefix | Description |
+|-------|--------|-------------|
+| Auth | `/api/auth/` | Login, refresh, logout, status |
+| Scan | `/api/scan/` | Start, stop, pause, resume, progress, state |
+| Results | `/api/results/` | List duplicates, delete/move/link items |
+| Settings | `/api/settings/` | Get/update scan and web settings |
+| Thumbnails | `/api/thumbnails/` | Retrieve scan thumbnails |
+| SSE | `/api/sse/` | Server-Sent Events for real-time progress |
+| Health | `/health` | Health check (no auth required) |
+
+### Example: start a scan via API
+
+```bash
+# Login
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"password":"mysecretpassword"}' | jq -r '.access_token')
+
+# Start scan
+curl -X POST http://localhost:8080/api/scan/start \
+  -H "Authorization: Bearer $TOKEN"
+
+# Or use an API key
+curl -X POST http://localhost:8080/api/scan/start \
+  -H "X-API-Key: my-api-key"
+```
+
+---
+
 # Screenshots (outdated)
 <img src="https://user-images.githubusercontent.com/46010672/129763067-8855a538-4a4f-4831-ac42-938eae9343bd.png" width="510">
 
@@ -326,6 +380,12 @@ Video Duplicate Finder is licensed under AGPLv3
 - [ActiPro Avalonia Controls (Free Edition)](https://github.com/Actipro/Avalonia-Controls)
 - [FFmpeg.AutoGen](https://github.com/Ruslan-B/FFmpeg.AutoGen)
 - [MemoryPack](https://github.com/Cysharp/MemoryPack)
+- [React](https://react.dev/) — Web UI frontend framework
+- [Vite](https://vitejs.dev/) — Frontend build tooling
+- [TypeScript](https://www.typescriptlang.org/) — Type-safe frontend code
+- [ASP.NET Core](https://learn.microsoft.com/aspnet/core/) — Web backend and minimal API
+- [Swashbuckle / Swagger](https://github.com/domaindrivendev/Swashbuckle.AspNetCore) — OpenAPI/Swagger UI
+- [SignalR](https://learn.microsoft.com/aspnet/core/signalr/) — Real-time scan progress
 
 - [AcoustID.NET by wo80](https://github.com/wo80/AcoustID.NET) — the audio fingerprinting pipeline (Chromaprint-style chroma extraction, FIR smoothing, and fingerprint encoding) used for partial clip detection is derived from this library, licensed under LGPL 2.1
 

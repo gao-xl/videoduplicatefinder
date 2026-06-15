@@ -50,6 +50,7 @@ namespace VDF.Core {
 
 		PauseTokenSource pauseTokenSource = new();
 		CancellationTokenSource cancelationTokenSource = new();
+		PathMatcher? _includeMatcher;
 		readonly List<float> positionList = new();
 
 		bool isScanning;
@@ -156,7 +157,7 @@ namespace VDF.Core {
 				// Re-check after acquiring lock to avoid duplicate saves from racing threads
 				if (DateTime.UtcNow - lastCheckpointTime < interval) return;
 				lastCheckpointTime = DateTime.UtcNow;
-				DatabaseUtils.SaveDatabase();
+				DatabaseUtils.SaveDatabaseIncremental();
 				Logger.Instance.Info(T("Log.DatabaseCheckpoint", DatabaseUtils.Database.Count));
 			}
 		}
@@ -239,6 +240,7 @@ namespace VDF.Core {
 
 			BuildPositionList();
 			NormalizeScanPaths();
+			_includeMatcher = new PathMatcher(Settings.IncludeList);
 
 			isScanning = true;
 		}
@@ -279,6 +281,12 @@ namespace VDF.Core {
 		double GetGrayBytesIndex(FileEntry entry, float position) =>
 			entry.GetGrayBytesIndex(position, Settings.MaxSamplingDurationSeconds);
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		static int GetEntryPixelCount(FileEntry entry) {
+			var stream = entry.mediaInfo?.Streams?.FirstOrDefault(s => s.Width > 0 && s.Height > 0);
+			return stream != null ? stream.Width * stream.Height : 0;
+		}
+
 		void PrepareCompare() {
 			if (positionList.Count == 0) {
 				// Fresh process running compare-only (CLI 'compare' on an existing database):
@@ -289,6 +297,7 @@ namespace VDF.Core {
 				throw new Exception("Number of thumbnails can't be changed between quick rescans! Rescan has been aborted.");
 			}
 			NormalizeScanPaths();
+			_includeMatcher ??= new PathMatcher(Settings.IncludeList);
 			if (DatabaseUtils.Database.Count == 0) {
 				// Also a compare-only concern: the database is normally loaded by
 				// StartSearch's BuildFileList, which never ran in this process (issue #790).
@@ -323,6 +332,38 @@ namespace VDF.Core {
 			isScanning = false;
 		}
 
+		/// <summary>
+		/// Determines whether a path is likely a network path (SMB/NFS share).
+		/// On Windows: UNC paths (\\server\share) or drive letters mapped to network shares.
+		/// On Linux/macOS: paths starting with /mnt/, /media/, /srv/, or NFS mounts.
+		/// </summary>
+		static bool IsNetworkPath(string path) {
+			if (string.IsNullOrEmpty(path)) return false;
+			if (CoreUtils.IsWindows) {
+				// UNC path: \\server\share
+				if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+					return true;
+				// Check if a drive root is a network drive (e.g. Z:\)
+				if (path.Length >= 2 && path[1] == ':') {
+					try {
+						var driveRoot = path.Substring(0, 2) + Path.DirectorySeparatorChar;
+						var driveInfo = new DriveInfo(driveRoot);
+						if (driveInfo.DriveType == DriveType.Network)
+							return true;
+					}
+					catch { }
+				}
+				return false;
+			}
+			// Linux/macOS heuristics
+			if (path.StartsWith("/mnt/", StringComparison.OrdinalIgnoreCase) ||
+				path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ||
+				path.StartsWith("/srv/", StringComparison.OrdinalIgnoreCase) ||
+				path.StartsWith("/nas/", StringComparison.OrdinalIgnoreCase))
+				return true;
+			return false;
+		}
+
 		Task BuildFileList(CancellationToken cancellationToken) => Task.Run(() => {
 
 			DatabaseUtils.LoadDatabase();
@@ -341,19 +382,72 @@ namespace VDF.Core {
 					continue;
 				}
 
-				foreach (FileInfo file in FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
-					Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken)) {
+				bool isNetworkPath = IsNetworkPath(path);
+				int networkTimeoutMs = isNetworkPath ? Settings.NetworkPathTimeoutSeconds * 1000 : 0;
+
+				List<FileInfo> files;
+				if (isNetworkPath && networkTimeoutMs > 0) {
+					// Enumerate with a timeout for network paths so a stalled SMB/NFS
+					// share doesn't hang the entire scan indefinitely.
+					var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+					cts.CancelAfter(networkTimeoutMs);
+					try {
+						files = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
+							Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cts.Token);
+					}
+					catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+						// Timed out (not user-cancelled)
+						Logger.Instance.Info($"WARNING: Network path enumeration timed out after {Settings.NetworkPathTimeoutSeconds}s, skipping: '{path}'. Increase NetworkPathTimeoutSeconds in settings if the share is slow.");
+						continue;
+					}
+				}
+				else {
+					files = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
+						Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken);
+				}
+
+				foreach (FileInfo file in files) {
 					if (cancellationToken.IsCancellationRequested)
 						return;
-					FileEntry fEntry;
+					FileEntry? fEntry = null;
 					try {
-						fEntry = new(file);
+						if (IsNetworkPath(file.FullName) && Settings.NetworkRetryCount > 0) {
+							// Retry FileEntry creation on network paths with exponential backoff
+							for (int attempt = 0; attempt <= Settings.NetworkRetryCount; attempt++) {
+								try {
+									fEntry = new(file);
+									break;
+								}
+								catch (UnauthorizedAccessException ex) when (attempt < Settings.NetworkRetryCount) {
+									int delayMs = (int)Math.Pow(2, attempt) * 1000;
+									Logger.Instance.Info($"Network access error creating entry for '{file}' (attempt {attempt + 1}/{Settings.NetworkRetryCount + 1}), retrying in {delayMs}ms: {ex.Message}");
+									Thread.Sleep(delayMs);
+								}
+								catch (IOException ex) when (attempt < Settings.NetworkRetryCount) {
+									int delayMs = (int)Math.Pow(2, attempt) * 1000;
+									Logger.Instance.Info($"Network I/O error creating entry for '{file}' (attempt {attempt + 1}/{Settings.NetworkRetryCount + 1}), retrying in {delayMs}ms: {ex.Message}");
+									Thread.Sleep(delayMs);
+								}
+							}
+						}
+						else {
+							fEntry = new(file);
+						}
+					}
+					catch (UnauthorizedAccessException ex) {
+						Logger.Instance.Info($"Skipped file '{file}' because of access denied: {ex.Message}");
+						continue;
+					}
+					catch (IOException ex) when (IsNetworkPath(file.FullName)) {
+						Logger.Instance.Info($"Skipped file '{file}' because of network I/O error after retries: {ex.Message}");
+						continue;
 					}
 					catch (Exception e) {
 						//https://github.com/0x90d/videoduplicatefinder/issues/237
 						Logger.Instance.Info($"Skipped file '{file}' because of {e}");
 						continue;
 					}
+					if (fEntry == null) continue;
 					if (!DatabaseUtils.Database.TryGetValue(fEntry, out var dbEntry))
 						DatabaseUtils.Database.Add(fEntry);
 					else if (fEntry.DateCreated != dbEntry.DateCreated ||
@@ -396,7 +490,12 @@ namespace VDF.Core {
 						return true;
 					}
 				}
-				else if (!Settings.IncludeList.Any(f => {
+				else if (_includeMatcher != null && !_includeMatcher.IsIncluded(entry.Folder)) {
+					reportProgress = false;
+					reason = "path is not in the included directories list";
+					return true;
+				}
+				else if (_includeMatcher == null && !Settings.IncludeList.Any(f => {
 					if (!entry.Folder.StartsWith(f))
 						return false;
 					if (entry.Folder.Length == f.Length)
@@ -426,6 +525,7 @@ namespace VDF.Core {
 			}
 			if (!FileUtils.IsPathFFmpegSafe(entry.Path)) {
 				entry.Flags.Set(EntryFlags.MetadataError);
+				entry.dirty = true;
 				reason = "path contains characters not encodable to UTF-8 (e.g. lone surrogate from a mangled emoji) — FFmpeg cannot open it";
 				return true;
 			}
@@ -457,6 +557,7 @@ namespace VDF.Core {
 						FileAttributes attributes = File.GetAttributes(entry.Path);
 						entry.Flags.Set(EntryFlags.ReparsePoint, (attributes & FileAttributes.ReparsePoint) != 0);
 						entry.Flags.Set(EntryFlags.ReparsePointChecked);
+						entry.dirty = true;
 					}
 					catch { } // missing/inaccessible file — the existence check above already covers it
 				}
@@ -551,7 +652,11 @@ namespace VDF.Core {
 									skipReason = "path is not in the included directories list";
 								}
 							}
-							else if (!Settings.IncludeList.Any(f => {
+							else if (_includeMatcher != null && !_includeMatcher.IsIncluded(entry.Folder)) {
+								skipEntry = true;
+								skipReason = "path is not in the included directories list";
+							}
+							else if (_includeMatcher == null && !Settings.IncludeList.Any(f => {
 								if (!entry.Folder.StartsWith(f))
 									return false;
 								if (entry.Folder.Length == f.Length)
@@ -573,6 +678,10 @@ namespace VDF.Core {
 								IncrementProgress(entry.Path);
 							return ValueTask.CompletedTask;
 						}
+
+						// Ensure heavy fields are loaded before accessing grayBytes/mediaInfo
+						DatabaseUtils.EnsureHeavyFieldsLoaded(entry);
+
 						if (Settings.IncludeNonExistingFiles && entry.grayBytes?.Count > 0) {
 							bool hasAllInformation = entry.IsImage;
 							if (!hasAllInformation) {
@@ -609,11 +718,13 @@ namespace VDF.Core {
 							if (info == null) {
 								entry.invalid = true;
 								entry.Flags.Set(EntryFlags.MetadataError);
+								entry.dirty = true;
 								IncrementProgress(entry.Path);
 								return ValueTask.CompletedTask;
 							}
 
 							entry.mediaInfo = info;
+							entry.dirty = true;
 						}
 						// This is for people upgrading from an older VDF version
 						// Or if you create a new database, start and immediately stop the scan and then try to scan again
@@ -622,8 +733,13 @@ namespace VDF.Core {
 
 
 						if (entry.IsImage && entry.grayBytes.Count == 0) {
-							if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging))
+							if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging)) {
 								entry.invalid = true;
+								entry.dirty = true;
+							}
+							else {
+								entry.dirty = true;
+							}
 						}
 						else if (!entry.IsImage) {
 							string entryPath = entry.Path;
@@ -631,8 +747,10 @@ namespace VDF.Core {
 							string samplingLabel = T("Scan.Stage.SamplingFrames");
 							if (!FfmpegEngine.GetGrayBytesFromVideo(entry, positionList, Settings.MaxSamplingDurationSeconds,
 									Settings.ExtendedFFToolsLogging,
-									onSampleComplete: (done) => ReportStage(entryPath, samplingLabel, done, totalSamples)))
+									onSampleComplete: (done) => ReportStage(entryPath, samplingLabel, done, totalSamples))) {
 								entry.invalid = true;
+								entry.dirty = true;
+							}
 						}
 
 						// Audio fingerprint — videos only, only when enabled,
@@ -663,6 +781,7 @@ namespace VDF.Core {
 						Logger.Instance.Info($"Unhandled error processing '{entry.Path}': {ex}");
 						entry.invalid = true;
 						entry.Flags.Set(EntryFlags.ThumbnailError);
+						entry.dirty = true;
 						IncrementProgress(entry.Path);
 						return ValueTask.CompletedTask;
 					}
@@ -681,20 +800,24 @@ namespace VDF.Core {
 			// null = extraction failed (error or no audio stream)
 			entry.Flags.Set(EntryFlags.AudioFingerprintError);
 			entry.AudioFingerprint = Array.Empty<uint>();
+			entry.dirty = true;
 		}
 		else if (fp.Length == 0) {
 			// FFmpeg ran but produced no samples (file has no usable audio)
 			entry.Flags.Set(EntryFlags.NoAudioTrack);
 			entry.AudioFingerprint = Array.Empty<uint>();
+			entry.dirty = true;
 		}
 		else if (IsSilentFingerprint(fp)) {
 			// Silent tracks produce all-zero fingerprints, which Hamming-match any
 			// other silent track at 100% and cause false-positive partial-clip groups.
 			entry.Flags.Set(EntryFlags.SilentAudioTrack);
 			entry.AudioFingerprint = Array.Empty<uint>();
+			entry.dirty = true;
 		}
 		else {
 			entry.AudioFingerprint = fp;
+			entry.dirty = true;
 		}
 	}
 
@@ -766,6 +889,8 @@ namespace VDF.Core {
 		/// excluded from the comparison instead of failing on every pair.
 		/// </summary>
 		bool TryBuildCompareSnapshot(FileEntry entry, bool usePHashing) {
+			DatabaseUtils.EnsureHeavyFieldsLoaded(entry);
+
 			if (entry.IsImage) {
 				if (!entry.grayBytes.TryGetValue(0, out byte[]? imageGray) || imageGray == null)
 					return false;
@@ -787,6 +912,7 @@ namespace VDF.Core {
 				if (!entry.PHashes.TryGetValue(idx0, out ulong? phash)) {
 					phash = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[0]);
 					entry.PHashes[idx0] = phash; // cache for future quick rescans
+					entry.dirty = true;
 				}
 				if (phash == null)
 					LogMissingPHash(entry.Path);
@@ -795,7 +921,7 @@ namespace VDF.Core {
 			return true;
 		}
 
-		bool CheckIfDuplicate(FileEntry entry, byte[]?[]? overrideGray, ulong? overridePHash, FileEntry compItem, out float difference) {
+		bool CheckIfDuplicate(FileEntry entry, byte[]?[]? overrideGray, ulong?[]? overridePHashes, FileEntry compItem, out float difference) {
 			byte[]?[] grayBytes = overrideGray ?? entry.compareGray!;
 			float differenceLimit = 1.0f - Settings.Percent / 100f;
 			bool ignoreBlackPixels = Settings.IgnoreBlackPixels;
@@ -812,18 +938,38 @@ namespace VDF.Core {
 			if (Settings.UsePHashing) {
 				float differenceLimitpHash = Settings.Percent / 100f;
 
-				// Entries with unrecoverable pHash data were logged once during
-				// snapshot building; they simply never match in pHash mode.
-				ulong? phash = overrideGray != null ? overridePHash : entry.comparePHash;
-				ulong? phash_comp = compItem.comparePHash;
-				if (phash == null || phash_comp == null) {
-					difference = 1f;
-					return false;
-				}
-				bool isDup = pHash.PHashCompare.IsDuplicateByPercent(phash.Value, phash_comp.Value, out float similarity, differenceLimitpHash, strict: true);
-				difference = 1f - similarity;
-				return isDup;
+				ulong?[]? phashes = overrideGray != null ? overridePHashes : entry.comparePHashes;
+				ulong?[]? compPhashes = compItem.comparePHashes;
 
+				// Fallback to single-position mode if multi-position data not available
+				if (phashes == null || compPhashes == null) {
+					ulong? phash = overrideGray != null ? (overridePHashes != null && overridePHashes.Length > 0 ? overridePHashes[0] : null) : entry.comparePHash;
+					ulong? phash_comp = compItem.comparePHash;
+					if (phash == null || phash_comp == null) {
+						difference = 1f;
+						return false;
+					}
+					bool isDup = pHash.PHashCompare.IsDuplicateByPercent(phash.Value, phash_comp.Value, out float similarity, differenceLimitpHash, strict: true);
+					difference = 1f - similarity;
+					return isDup;
+				}
+
+				// Multi-position pHash: ALL positions must pass
+				float totalSimilarity = 0f;
+				for (int j = 0; j < phashes.Length; j++) {
+					if (phashes[j] == null || compPhashes[j] == null) {
+						difference = 1f;
+						return false;
+					}
+					bool posIsDup = pHash.PHashCompare.IsDuplicateByPercent(phashes[j]!.Value, compPhashes[j]!.Value, out float posSimilarity, differenceLimitpHash, strict: true);
+					if (!posIsDup) {
+						difference = 1f - posSimilarity;
+						return false; // Early exit: this position fails
+					}
+					totalSimilarity += posSimilarity;
+				}
+				difference = 1f - totalSimilarity / phashes.Length;
+				return true;
 			}
 
 			byte[]?[] compGray = compItem.compareGray!;
@@ -1022,6 +1168,26 @@ namespace VDF.Core {
 						if (compIndex <= entryIndex)
 							continue;
 
+						// File size pre-filter
+						if (Settings.FileSizeTolerancePercent > 0 && !entry.IsImage) {
+							long minSize = (long)(entry.FileSize * (1.0 - Settings.FileSizeTolerancePercent / 100.0));
+							long maxSize = (long)(entry.FileSize * (1.0 + Settings.FileSizeTolerancePercent / 100.0));
+							if (compItem.FileSize < minSize || compItem.FileSize > maxSize)
+								continue;
+						}
+
+						// Resolution pre-filter
+						if (Settings.EnableResolutionPreFilter && !entry.IsImage) {
+							int entryPixels = GetEntryPixelCount(entry);
+							int compPixels = GetEntryPixelCount(compItem);
+							if (entryPixels > 0 && compPixels > 0) {
+								int smaller = Math.Min(entryPixels, compPixels);
+								int larger = Math.Max(entryPixels, compPixels);
+								if (smaller < larger / 2) // smaller must be at least 50% of larger
+									continue;
+							}
+						}
+
 						if (!entry.IsImage) {
 							double compDurationSeconds = compItem.mediaInfo!.Duration.TotalSeconds;
 							double compToleranceSeconds = GetDurationToleranceSeconds(compDurationSeconds);
@@ -1038,7 +1204,7 @@ namespace VDF.Core {
 							SameFolderAtDepth(entry.Folder, compItem.Folder, Settings.SameFolderDepth))
 							continue;
 
-						isDuplicate = TryCheckDuplicate(entry, compItem, flippedGrayBytes, flippedPHash, out difference, out flags);
+						isDuplicate = TryCheckDuplicate(entry, compItem, flippedGrayBytes, flippedPHashes, out difference, out flags);
 
 						if (isDuplicate &&
 							entry.FileSize == compItem.FileSize &&
@@ -1063,8 +1229,17 @@ namespace VDF.Core {
 					if (Settings.CompareHorizontallyFlipped)
 						flippedGrayBytes = CreateFlippedGrayBytes(entry);
 					for (int n = i + 1; n < imageEntries.Count; n++) {
-						var compItem = imageEntries[n];
-						float difference = 0;
+					var compItem = imageEntries[n];
+
+					// File size pre-filter for images
+					if (Settings.FileSizeTolerancePercent > 0) {
+						long minSize = (long)(entry.FileSize * (1.0 - Settings.FileSizeTolerancePercent / 100.0));
+						long maxSize = (long)(entry.FileSize * (1.0 + Settings.FileSizeTolerancePercent / 100.0));
+						if (compItem.FileSize < minSize || compItem.FileSize > maxSize)
+							continue;
+					}
+
+					float difference = 0;
 						DuplicateFlags flags;
 						if (Settings.FolderMatchMode == FolderMatchMode.SameFolderOnly &&
 							!SameFolderAtDepth(entry.Folder, compItem.Folder, Settings.SameFolderDepth))
@@ -1121,6 +1296,27 @@ namespace VDF.Core {
 
 					for (int n = i + 1; n < videoEntries.Count; n++) {
 						var compItem = videoEntries[n];
+
+						// File size pre-filter
+						if (Settings.FileSizeTolerancePercent > 0) {
+							long minSize = (long)(entry.FileSize * (1.0 - Settings.FileSizeTolerancePercent / 100.0));
+							long maxSize = (long)(entry.FileSize * (1.0 + Settings.FileSizeTolerancePercent / 100.0));
+							if (compItem.FileSize < minSize || compItem.FileSize > maxSize)
+								continue;
+						}
+
+						// Resolution pre-filter
+						if (Settings.EnableResolutionPreFilter) {
+							int entryPixels = GetEntryPixelCount(entry);
+							int compPixels = GetEntryPixelCount(compItem);
+							if (entryPixels > 0 && compPixels > 0) {
+								int smaller = Math.Min(entryPixels, compPixels);
+								int larger = Math.Max(entryPixels, compPixels);
+								if (smaller < larger / 2)
+									continue;
+							}
+						}
+
 						double compDurationSeconds = compItem.mediaInfo!.Duration.TotalSeconds;
 						double compToleranceSeconds = GetDurationToleranceSeconds(compDurationSeconds);
 						double allowedSeconds = Math.Min(entryToleranceSeconds, compToleranceSeconds);
@@ -1135,10 +1331,10 @@ namespace VDF.Core {
 							SameFolderAtDepth(entry.Folder, compItem.Folder, Settings.SameFolderDepth))
 							continue;
 
-						bool isDuplicate = TryCheckDuplicate(entry, compItem, flippedGrayBytes, flippedPHash, out difference, out flags);
-						if (isDuplicate &&
-							entry.FileSize == compItem.FileSize &&
-							entry.mediaInfo!.Duration == compItem.mediaInfo!.Duration &&
+						bool isDuplicate = TryCheckDuplicate(entry, compItem, flippedGrayBytes, flippedPHashes, out difference, out flags);
+					if (isDuplicate &&
+						entry.FileSize == compItem.FileSize &&
+						entry.mediaInfo!.Duration == compItem.mediaInfo!.Duration &&
 							Settings.ExcludeHardLinks &&
 							HardLinkUtils.AreSameFile(entry.Path, compItem.Path)) {
 							isDuplicate = false;
@@ -1216,6 +1412,7 @@ namespace VDF.Core {
 			foreach (FileEntry entry in ScanList) {
 				entry.compareGray = null;
 				entry.comparePHash = null;
+				entry.comparePHashes = null;
 			}
 		}
 
@@ -2108,6 +2305,60 @@ namespace VDF.Core {
 			Logger.Instance.Info("Scan stopped by user");
 			if (isScanning)
 				cancelationTokenSource.Cancel();
+		}
+
+		/// <summary>
+		/// Efficient path inclusion checker using a sorted array and binary search.
+		/// For a folder path to be "included", it must start with one of the include roots.
+		/// By sorting the include roots and using binary search, we reduce the check from
+		/// O(n) to O(log n) per call.
+		/// </summary>
+		internal sealed class PathMatcher {
+			readonly string[] _sortedRoots;
+			readonly bool _ignoreCase;
+
+			public PathMatcher(HashSet<string> roots) {
+				_ignoreCase = CoreUtils.IsWindows;
+				_sortedRoots = roots
+					.OrderBy(r => r, _ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+					.ToArray();
+			}
+
+			/// <summary>
+			/// Returns true if <paramref name="folderPath"/> starts with any of the include roots,
+			/// using the same semantics as the original IncludeList.Any(f => folderPath.StartsWith(f) ...)
+			/// check: exact match or the include root is a proper parent directory.
+			/// </summary>
+			public bool IsIncluded(string folderPath) {
+				if (_sortedRoots.Length == 0) return false;
+
+				// Binary search for the position where folderPath would be inserted.
+				// Any include root that could match must be <= folderPath alphabetically.
+				// We scan backwards from the insertion point to find all roots that are
+				// prefixes of folderPath.
+				int idx = Array.BinarySearch(_sortedRoots, folderPath,
+					_ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
+				if (idx >= 0) return true; // Exact match
+
+				// idx is the bitwise complement of the insertion point
+				int insertPoint = ~idx;
+
+				// Check the root just before the insertion point (longest possible prefix)
+				for (int i = insertPoint - 1; i >= 0; i--) {
+					string root = _sortedRoots[i];
+					if (!folderPath.StartsWith(root, _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+						break; // Roots are sorted; if this one doesn't prefix-match, earlier ones won't either
+					// Verify it's a proper parent directory relationship
+					if (folderPath.Length == root.Length)
+						return true;
+					string relativePath = Path.GetRelativePath(root, folderPath);
+					if (!relativePath.StartsWith('.') && !Path.IsPathRooted(relativePath))
+						return true;
+				}
+
+				return false;
+			}
 		}
 	}
 }

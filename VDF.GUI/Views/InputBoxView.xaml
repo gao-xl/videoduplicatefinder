@@ -13,79 +13,71 @@
     CanResize="false"
     SizeToContent="Height"
     WindowStartupLocation="CenterOwner">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <TextBlock
-            Grid.Row="0"
-            Margin="10,20,10,0"
-            Text="{Binding Message}"
-            TextWrapping="Wrap" />
-        <StackPanel
-            Grid.Row="1"
-            Margin="10,10,10,0"
-            IsVisible="{Binding HasReadOnlyInfo}">
-            <TextBlock
-                FontSize="11"
-                Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                Text="Current file:" />
-            <SelectableTextBlock
-                Margin="0,2,0,0"
-                Text="{Binding ReadOnlyInfo}"
-                TextWrapping="Wrap" />
+    <Border Classes="dialog-root">
+        <StackPanel>
+            <!-- Content area -->
+            <StackPanel Spacing="12" Padding="24,20">
+                <TextBlock
+                    Text="{Binding Message}"
+                    TextWrapping="Wrap"
+                    FontSize="14"
+                    Foreground="{DynamicResource TextPrimaryBrush}" />
+                <StackPanel
+                    IsVisible="{Binding HasReadOnlyInfo}"
+                    Spacing="4">
+                    <TextBlock
+                        Classes="field-label"
+                        Text="Current file:" />
+                    <Border
+                        Background="{DynamicResource SurfaceTertiaryBrush}"
+                        CornerRadius="6"
+                        Padding="10,6">
+                        <SelectableTextBlock
+                            Text="{Binding ReadOnlyInfo}"
+                            TextWrapping="Wrap"
+                            FontSize="12"
+                            Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </Border>
+                </StackPanel>
+                <TextBox
+                    x:Name="TextBoxInput"
+                    Text="{Binding Input}"
+                    TextWrapping="Wrap"
+                    PlaceholderText="{Binding WaterMark}" />
+            </StackPanel>
+            <!-- Action bar -->
+            <Border Classes="dialog-actions">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                    <Button
+                        Classes="btn-primary"
+                        MinWidth="100"
+                        Command="{Binding OKCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.OK]}"
+                        IsDefault="{Binding HasOKButton}"
+                        IsVisible="{Binding HasOKButton}" />
+                    <Button
+                        Classes="btn-primary"
+                        MinWidth="100"
+                        Command="{Binding YesCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Yes]}"
+                        IsDefault="{Binding HasYesButton}"
+                        IsVisible="{Binding HasYesButton}" />
+                    <Button
+                        Classes="btn-ghost"
+                        MinWidth="100"
+                        Command="{Binding NoCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.No]}"
+                        IsCancel="{Binding HasNoButton}"
+                        IsVisible="{Binding HasNoButton}" />
+                    <Button
+                        Classes="btn-ghost"
+                        MinWidth="100"
+                        Command="{Binding CancelCommand}"
+                        Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Cancel]}"
+                        IsCancel="{Binding HasCancelButton}"
+                        IsVisible="{Binding HasCancelButton}" />
+                </StackPanel>
+            </Border>
         </StackPanel>
-        <TextBox
-            x:Name="TextBoxInput"
-            Grid.Row="2"
-            Margin="10,10,10,20"
-            Text="{Binding Input}"
-            TextWrapping="Wrap"
-            PlaceholderText="{Binding WaterMark}" />
-        <Grid Grid.Row="3" Margin="5,0,5,5">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Button
-                Grid.Column="1"
-                Width="100"
-                Margin="5"
-                Command="{Binding OKCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.OK]}"
-                IsDefault="{Binding HasOKButton}"
-                IsVisible="{Binding HasOKButton}" />
-            <Button
-                Grid.Column="2"
-                Width="100"
-                Margin="5"
-                Command="{Binding YesCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Yes]}"
-                IsDefault="{Binding HasYesButton}"
-                IsVisible="{Binding HasYesButton}" />
-            <Button
-                Grid.Column="3"
-                Width="100"
-                Margin="5"
-                Command="{Binding NoCommand}"
-                Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.No]}"
-                IsCancel="{Binding HasNoButton}"
-                IsVisible="{Binding HasNoButton}" />
-            <Button
-                Grid.Column="4"
-                Width="100"
-                Margin="5"
-                Command="{Binding CancelCommand}"
-                    Content="{Binding Source={x:Static local:App.Lang}, Path=[Dialog.Cancel]}"
-                IsCancel="{Binding HasCancelButton}"
-                IsVisible="{Binding HasCancelButton}" />
-        </Grid>
-    </Grid>
+    </Border>
 </Window>

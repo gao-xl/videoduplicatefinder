@@ -1,0 +1,63 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ===== Modern card style ===== -->
+    <!-- Usage: <Border Classes="card"> ... </Border> -->
+
+    <!-- Base card: rounded corners, subtle shadow, clean background -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Card hover: slight elevation + border highlight -->
+    <Style Selector="Border.card:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardHoverBorderBrush}" />
+        <Setter Property="RenderTransform" Value="scale(1.005)" />
+    </Style>
+
+    <!-- Card selected state: accent border -->
+    <Style Selector="Border.card.card-selected">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardSelectedBorderBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <!-- Card with best quality indicator: gradient top border accent -->
+    <!-- Use with a top Border child that has Classes="card-best-accent" -->
+    <Style Selector="Border.card-best-accent">
+        <Setter Property="Height" Value="3" />
+        <Setter Property="CornerRadius" Value="12,12,0,0" />
+        <Setter Property="Background">
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                <GradientStop Color="{DynamicResource AccentGradientStart}" Offset="0" />
+                <GradientStop Color="{DynamicResource AccentGradientEnd}" Offset="1" />
+            </LinearGradientBrush>
+        </Setter>
+        <Setter Property="Margin" Value="-1,-1,-1,0" />
+    </Style>
+
+    <!-- Compact card variant -->
+    <Style Selector="Border.card.card-compact">
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <!-- Flat card variant (no border, just background) -->
+    <Style Selector="Border.card.card-flat">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.card.card-flat:pointerover">
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+</Styles>

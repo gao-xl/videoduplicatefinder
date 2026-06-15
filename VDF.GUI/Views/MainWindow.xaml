@@ -551,19 +551,41 @@
                                                 Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Filter.Title]}" />
                                         </StackPanel>
                                     </CheckBox>
+                                    <MenuItem Header="|" />
+                                    <CheckBox Margin="5,0,0,0" IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=DarkMode}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Viewbox
+                                                Width="16"
+                                                Height="16"
+                                                Focusable="False">
+                                                <Canvas
+                                                    Width="24"
+                                                    Height="24"
+                                                    Focusable="False">
+                                                    <Path
+                                                        Data="M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                                        Fill="{DynamicResource AccentBrush}"
+                                                        Focusable="False" />
+                                                </Canvas>
+                                            </Viewbox>
+                                            <TextBlock
+                                                Margin="5,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Text="Dark" />
+                                        </StackPanel>
+                                    </CheckBox>
                             </Menu>
                             <Grid Grid.Row="1">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition />
                                 </Grid.RowDefinitions>
-                                <Grid
+                                <Border
                                     x:Name="GridFilter"
                                     Grid.Row="0"
-                                    IsVisible="{Binding IsFilterEnabled}"
-                                    Background="{actipro:ThemeResource Container3BackgroundBrush}">
-                                    <WrapPanel
-                                    Margin="5">
+                                    Classes="filter-bar"
+                                    IsVisible="{Binding IsFilterEnabled}">
+                                    <WrapPanel Spacing="8">
                                         <TextBlock VerticalAlignment="Center" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Filter.Path]}" />
                                         <TextBox
                                             MinWidth="150"
@@ -639,7 +661,7 @@
                                                 Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Filter.Note]}" />
                                         </StackPanel>
                                     </WrapPanel>
-                                </Grid>
+                                </Border>
                                 <Grid Grid.Row="1">
                                     <DataGrid
                                         Name="dataGridGrouping"
@@ -1197,44 +1219,45 @@
                                     </Border>
                                 </Grid>
                             </Grid>
-                            <WrapPanel Grid.Row="2" Margin="0,2,0,0">
+                            <Border Grid.Row="2" Classes="status-bar">
+                                <WrapPanel>
                                 <!-- Statistics -->
                                 <StackPanel Orientation="Horizontal"
                                     IsVisible="{Binding !!Duplicates.Count}" VerticalAlignment="Center"
                                     Margin="0,0,10,0">
-                                    <TextBlock FontSize="12">
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.CheckedDuplicates]}" />
-                                        <Run Text="{Binding DuplicatesCheckedCounter, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding DuplicatesCheckedCounter, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.CheckedSize]}" />
-                                        <Run Text="{Binding DuplicatesCheckedSize, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding DuplicatesCheckedSize, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.Duplicates]}" />
-                                        <Run Text="{Binding TotalDuplicates, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding TotalDuplicates, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.DuplicateGroups]}" />
-                                        <Run Text="{Binding TotalDuplicateGroups, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding TotalDuplicateGroups, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.DuplicateSize]}" />
-                                        <Run Text="{Binding TotalDuplicatesSize, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding TotalDuplicatesSize, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12" ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.PotentialSavingsTooltip]}">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.PotentialSavingsTooltip]}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.PotentialSavings]}" />
-                                        <Run Text="{Binding PotentialSavings, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding PotentialSavings, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.SizeRemoved]}" />
-                                        <Run Text="{Binding TotalSizeRemoved, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding TotalSizeRemoved, Mode=OneWay}" />
                                     </TextBlock>
                                 </StackPanel>
                                 <!-- Progress info -->
@@ -1242,28 +1265,29 @@
                                     VerticalAlignment="Center">
                                     <!-- Thumbnail progress (conditional) -->
                                     <StackPanel Orientation="Horizontal" IsVisible="{Binding ShowThumbnailRetrievalProgress}" Margin="0,0,8,0">
-                                        <ProgressBar MinWidth="60" Height="12" IsIndeterminate="{Binding ShowThumbnailRetrievalProgressBar}" />
-                                        <TextBlock FontSize="12" Margin="4,0" Text="{Binding ThumbnailRetrievalProgressText}" />
-                                        <Border Width="1" Margin="5,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
+                                        <ProgressBar MinWidth="60" IsIndeterminate="{Binding ShowThumbnailRetrievalProgressBar}" />
+                                        <TextBlock FontSize="12" Margin="4,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding ThumbnailRetrievalProgressText}" />
+                                        <Border Classes="vdivider" Margin="4,2" />
                                     </StackPanel>
                                     <!-- Scan progress -->
-                                    <ProgressBar Name="PbScanProgress" MinWidth="80" Height="12"
+                                    <ProgressBar Name="PbScanProgress" MinWidth="80"
                                         Maximum="{Binding ScanProgressMaxValue, Mode=OneWay}"
                                         Value="{Binding ScanProgressValue, Mode=OneWay}" />
-                                    <TextBlock FontSize="12" Margin="4,0">
+                                    <TextBlock FontSize="12" Margin="4,0" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.ElapsedTime]}" />
-                                        <Run Text="{Binding TimeElapsed, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding TimeElapsed, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="3,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12" Margin="2,0">
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Margin="2,0" Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Run Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Stats.RemainingTime]}" />
-                                        <Run Text="{Binding RemainingTime, Mode=OneWay}" />
+                                        <Run FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Text="{Binding RemainingTime, Mode=OneWay}" />
                                     </TextBlock>
-                                    <Border Width="1" Margin="3,2" Background="{actipro:ThemeResource ButtonForegroundBrush}" />
-                                    <TextBlock FontSize="12" Margin="2,0" Text="{Binding ScanProgressText, Mode=OneWay}"
+                                    <Border Classes="vdivider" Margin="4,2" />
+                                    <TextBlock FontSize="12" Margin="2,0" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding ScanProgressText, Mode=OneWay}"
                                         TextTrimming="CharacterEllipsis" MaxWidth="500" />
                                 </StackPanel>
                             </WrapPanel>
+                            </Border>
                             <Grid
                                 x:Name="BusyIndicator"
                                 Grid.RowSpan="3"
@@ -1375,11 +1399,9 @@
                                             </StackPanel>
 
                                             <!-- Comparison Parameters -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="6">
-                                                    <TextBlock Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.Percent]}" />
+                                                    <TextBlock Classes="section-title" Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.Percent]}" />
                                                     <NumericUpDown Width="200" HorizontalAlignment="Left" FormatString="\{0\}%"
                                                                    Increment="0.1" Maximum="100" Minimum="1"
                                                                    ToolTip.Tip="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.PercentTooltip]}"
@@ -1431,9 +1453,7 @@
                                             </Border>
 
                                             <!-- Options (2-column checkboxes) -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
                                                     <StackPanel Grid.Column="0" Spacing="4">
                                                         <CheckBox Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.IncludeSubDirectories]}"
@@ -1511,12 +1531,9 @@
                                                 </Grid>
                                             </Border>
                                             <!-- Partial Clip Detection -->
-                                            <Border Margin="0,8,0,0"
-                                                    Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel" Margin="0,8,0,0">
                                                 <StackPanel Spacing="6">
-                                                    <TextBlock FontWeight="Bold"
+                                                    <TextBlock Classes="section-title"
                                                                Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.PartialClipDetection]}" />
                                                     <CheckBox Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.EnablePartialClipDetection]}"
                                                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=EnablePartialClipDetection}"
@@ -1572,9 +1589,9 @@
                                     </TabItem.Header>
                                     <Grid Margin="12,12,12,10" ColumnDefinitions="*,*" ColumnSpacing="10" RowDefinitions="Auto,*,Auto">
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,4">
-                                            <TextBlock FontWeight="Bold"
+                                            <TextBlock Classes="section-title"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.SearchDirectories]}" />
-                                            <TextBlock Opacity="0.6" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                            <TextBlock Classes="section-hint"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.SearchDirectoriesHint]}" />
                                         </StackPanel>
                                         <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="Auto,*,Auto">
@@ -1630,9 +1647,9 @@
                                             </StackPanel>
                                         </Grid>
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,4">
-                                            <TextBlock FontWeight="Bold"
+                                            <TextBlock Classes="section-title"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.ExcludeDirectories]}" />
-                                            <TextBlock Opacity="0.6" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                            <TextBlock Classes="section-hint"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.ExcludeDirectoriesHint]}" />
                                         </StackPanel>
                                         <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">
@@ -1712,9 +1729,7 @@
                                             <TextBlock TextWrapping="Wrap" Foreground="{actipro:ThemeResource ControlBackgroundBrushEmphasizedDanger}"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.FilesNote]}" />
                                             <!-- File Size -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="8">
                                                     <CheckBox x:Name="CheckboxFilterByFileSize"
                                                               Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.FileSize]}"
@@ -1735,9 +1750,7 @@
                                                 </StackPanel>
                                             </Border>
                                             <!-- File Path Contains -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <Grid RowDefinitions="Auto,Auto,*,Auto">
                                                     <CheckBox x:Name="CheckboxFilterByFilePathContains" Grid.Row="0" VerticalAlignment="Top"
                                                               Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.FilePathContains]}"
@@ -1779,9 +1792,7 @@
                                                 </Grid>
                                             </Border>
                                             <!-- File Path Not Contains -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <Grid RowDefinitions="Auto,Auto,*,Auto">
                                                     <CheckBox x:Name="CheckboxFilterByFilePathNotContains" Grid.Row="0" VerticalAlignment="Top"
                                                               Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.FilePathNotContains]}"
@@ -1933,9 +1944,7 @@
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Margin="16,12,16,16" Spacing="12">
                                             <!-- Display options -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="8">
                                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                                         <TextBlock VerticalAlignment="Center"
@@ -1974,9 +1983,7 @@
                                                 </StackPanel>
                                             </Border>
                                             <!-- Column visibility -->
-                                            <Border Background="{actipro:ThemeResource Container1BackgroundBrush}"
-                                                    BorderBrush="{actipro:ThemeResource Container1BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="12">
+                                            <Border Classes="settings-panel">
                                                 <StackPanel Spacing="4">
                                                     <CheckBox Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.ShowThumbnailColumn]}"
                                                               IsChecked="{Binding Source={x:Static Settings:SettingsFile.Instance}, Path=ShowThumbnailColumn}" IsThreeState="False" />
@@ -2007,9 +2014,9 @@
                                                 Command="{Binding ResetAllShortcutsCommand}"
                                                 Content="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.KeyboardShortcuts.ResetAll]}" />
                                         <Grid Grid.Row="1" ColumnDefinitions="250,200,*" Margin="0,0,0,4">
-                                            <TextBlock Grid.Column="0" FontWeight="Bold"
+                                            <TextBlock Grid.Column="0" Classes="section-title"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.KeyboardShortcuts.Action]}" />
-                                            <TextBlock Grid.Column="1" FontWeight="Bold"
+                                            <TextBlock Grid.Column="1" Classes="section-title"
                                                        Text="{Binding Source={x:Static local:App.Lang}, Path=[MainWindow.Settings.KeyboardShortcuts.Shortcut]}" />
                                         </Grid>
                                         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">

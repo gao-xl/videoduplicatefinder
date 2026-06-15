@@ -1,6 +1,76 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <!-- ===== Primary button style ===== -->
+    <Style Selector="Button.btn-primary">
+        <Setter Property="Background" Value="{DynamicResource ButtonPrimaryBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ButtonPrimaryForeground}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.btn-primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AccentBrushHover}" />
+    </Style>
+    <Style Selector="Button.btn-primary:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+
+    <!-- ===== Danger button style ===== -->
+    <Style Selector="Button.btn-danger">
+        <Setter Property="Background" Value="{DynamicResource ButtonDangerBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ButtonDangerForeground}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.btn-danger:pointerover">
+        <Setter Property="Background" Value="#EF4444" />
+    </Style>
+    <Style Selector="Button.btn-danger:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+
+    <!-- ===== Ghost/Outline button variant ===== -->
+    <Style Selector="Button.btn-ghost">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource ButtonGhostForegroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ButtonGhostBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.btn-ghost:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceTertiaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}" />
+    </Style>
+    <Style Selector="Button.btn-ghost:pressed">
+        <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
+
+    <!-- ===== Standard button modernization ===== -->
     <!-- Tactile press feedback: button depresses 1px on click -->
     <Style Selector="Button:pressed">
         <Setter Property="RenderTransform">
@@ -8,9 +78,11 @@
         </Setter>
     </Style>
     <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Transitions">
             <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" Easing="CubicEaseInOut" />
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
             </Transitions>
         </Setter>
     </Style>

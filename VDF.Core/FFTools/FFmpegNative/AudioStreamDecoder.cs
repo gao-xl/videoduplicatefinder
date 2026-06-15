@@ -231,6 +231,100 @@ namespace VDF.Core.FFTools.FFmpegNative {
 			return converted;
 		}
 
+		/// <summary>
+		/// Decodes the entire audio stream and returns all resampled mono s16 PCM samples
+		/// as a single array. Suitable for Chromaprint input or other analysis that needs
+		/// all samples at once. Returns null when the file has no audio stream or on failure.
+		/// </summary>
+		/// <param name="maxDurationSeconds">Maximum duration in seconds to decode. Default 300 (5 minutes).</param>
+		/// <returns>Array of s16 PCM samples, or null on failure.</returns>
+		public short[]? DecodeAllSamples(int maxDurationSeconds = 300) {
+			if (!HasAudioStream) return null;
+
+			_deadlineTicks = Stopwatch.GetTimestamp() + _timeoutTicks;
+			int maxSamples = _targetSampleRate * maxDurationSeconds;
+			var samples = new System.Collections.Generic.List<short>(maxSamples);
+			const int maxFramesPerPacket = 10_000;
+
+			try {
+				while (samples.Count < maxSamples) {
+					ffmpeg.av_packet_unref(_pPacket);
+					int readResult = ffmpeg.av_read_frame(_pFormatContext, _pPacket);
+					if (readResult == ffmpeg.AVERROR_EOF)
+						break;
+					readResult.ThrowExceptionIfError();
+					_deadlineTicks = Stopwatch.GetTimestamp() + _timeoutTicks;
+
+					if (_pPacket->stream_index != _streamIndex)
+						continue;
+
+					int sendResult = ffmpeg.avcodec_send_packet(_pCodecContext, _pPacket);
+					if (sendResult < 0 && sendResult != ffmpeg.AVERROR(ffmpeg.EAGAIN))
+						continue;
+
+					for (int iter = 0; iter < maxFramesPerPacket; iter++) {
+						int recvResult = ffmpeg.avcodec_receive_frame(_pCodecContext, _pFrame);
+						if (recvResult == ffmpeg.AVERROR(ffmpeg.EAGAIN) || recvResult == ffmpeg.AVERROR_EOF)
+							break;
+						recvResult.ThrowExceptionIfError();
+
+						ConvertAndCollect(_pFrame->extended_data, _pFrame->nb_samples, samples, maxSamples);
+						ffmpeg.av_frame_unref(_pFrame);
+					}
+				}
+
+				// Flush the decoder
+				ffmpeg.avcodec_send_packet(_pCodecContext, null);
+				for (int iter = 0; iter < maxFramesPerPacket; iter++) {
+					int recvResult = ffmpeg.avcodec_receive_frame(_pCodecContext, _pFrame);
+					if (recvResult == ffmpeg.AVERROR(ffmpeg.EAGAIN) || recvResult == ffmpeg.AVERROR_EOF)
+						break;
+					recvResult.ThrowExceptionIfError();
+
+					ConvertAndCollect(_pFrame->extended_data, _pFrame->nb_samples, samples, maxSamples);
+					ffmpeg.av_frame_unref(_pFrame);
+				}
+
+				// Flush the resampler
+				ConvertAndCollect(null, 0, samples, maxSamples);
+			}
+			catch {
+				return null;
+			}
+
+			return samples.Count > 0 ? samples.ToArray() : null;
+		}
+
+		/// <summary>
+		/// Resamples audio from <paramref name="inputData"/> (or flushes the resampler
+		/// when <paramref name="inputData"/> is null) and appends the result to the list.
+		/// </summary>
+		private void ConvertAndCollect(byte** inputData, int inputSamples, System.Collections.Generic.List<short> output, int maxSamples) {
+			int outSamples = ffmpeg.swr_get_out_samples(_pSwrContext, inputSamples);
+			if (outSamples <= 0) return;
+
+			int remaining = maxSamples - output.Count;
+			if (remaining <= 0) return;
+			int toConvert = Math.Min(outSamples, remaining);
+
+			int requiredBytes = toConvert * 2; // s16 = 2 bytes per sample
+			if (_outBuf.Length < requiredBytes)
+				_outBuf = new byte[requiredBytes];
+
+			int converted;
+			fixed (byte* outPtr = _outBuf) {
+				byte* outBuf = outPtr;
+				converted = ffmpeg.swr_convert(_pSwrContext,
+					&outBuf, toConvert,
+					inputData, inputSamples);
+			}
+			if (converted <= 0) return;
+
+			var span = MemoryMarshal.Cast<byte, short>(_outBuf.AsSpan(0, converted * 2));
+			for (int i = 0; i < span.Length && output.Count < maxSamples; i++)
+				output.Add(span[i]);
+		}
+
 		public void Dispose() {
 			// Null each field after freeing so a finalizer running after Dispose
 			// (or a double Dispose) can't pass dangling pointers back to FFmpeg.

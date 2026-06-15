@@ -236,14 +236,21 @@ namespace VDF.Core {
 						continue;
 					}
 					entry.compareGray = gray;
-					if (Settings.UsePHashing)
-						entry.comparePHash = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[0]!);
+					if (Settings.UsePHashing) {
+						var phashes = new ulong?[positions.Count];
+						for (int j = 0; j < positions.Count; j++) {
+							phashes[j] = pHash.PerceptualHash.ComputePHashFromGray32x32(gray[j]!);
+						}
+						entry.comparePHashes = phashes;
+						entry.comparePHash = phashes[0];
+					}
 				}
 			}
 			if (!snapshotsOk) {
 				AppendVerdict(sb, false, failures, hints, scanInclusionIssues, null);
 				a.compareGray = b.compareGray = null;
 				a.comparePHash = b.comparePHash = null;
+				a.comparePHashes = b.comparePHashes = null;
 				return sb.ToString();
 			}
 
@@ -293,7 +300,7 @@ namespace VDF.Core {
 			// ── Visual similarity ───────────────────────────────────────────
 			sb.AppendLine("--- Visual similarity ---");
 			bool usePHash = !a.IsImage && Settings.UsePHashing;
-			sb.AppendLine($"Method: {(a.IsImage ? "32x32 grayscale (single image)" : usePHash ? "perceptual hash (pHash) of the first sampled frame" : $"32x32 grayscale, averaged over {positions.Count} frame(s)")}{(Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ? $" — ignoring {(Settings.IgnoreBlackPixels && Settings.IgnoreWhitePixels ? "black and white" : Settings.IgnoreBlackPixels ? "black" : "white")} pixels" : "")}");
+			sb.AppendLine($"Method: {(a.IsImage ? "32x32 grayscale (single image)" : usePHash ? $"perceptual hash (pHash) of {positions.Count} sampled frame(s) (all must pass)" : $"32x32 grayscale, averaged over {positions.Count} frame(s)")}{(Settings.IgnoreBlackPixels || Settings.IgnoreWhitePixels ? $" — ignoring {(Settings.IgnoreBlackPixels && Settings.IgnoreWhitePixels ? "black and white" : Settings.IgnoreBlackPixels ? "black" : "white")} pixels" : "")}");
 
 			bool isDuplicate = CheckIfDuplicate(a, null, null, b, out float difference);
 			float similarity = 1f - difference;
@@ -325,8 +332,8 @@ namespace VDF.Core {
 			bool flipped = false;
 			if (Settings.CompareHorizontallyFlipped) {
 				byte[]?[] flippedGray = CreateFlippedGrayBytes(a);
-				ulong? flippedPHash = usePHash ? pHash.PerceptualHash.ComputePHashFromGray32x32(flippedGray[0]!) : null;
-				if (CheckIfDuplicate(a, flippedGray, flippedPHash, b, out float flippedDifference)) {
+				ulong?[]? flippedPHashes = usePHash ? CreateFlippedPHashes(flippedGray, usePHash) : null;
+				if (CheckIfDuplicate(a, flippedGray, flippedPHashes, b, out float flippedDifference)) {
 					sb.AppendLine($"Horizontally flipped similarity: {FormatSimilarity(1f - flippedDifference)}");
 					if (!isDuplicate || flippedDifference < difference) {
 						isDuplicate = true;
@@ -387,6 +394,7 @@ namespace VDF.Core {
 
 			a.compareGray = b.compareGray = null;
 			a.comparePHash = b.comparePHash = null;
+			a.comparePHashes = b.comparePHashes = null;
 			return sb.ToString();
 		}
 

@@ -16,6 +16,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using VDF.Core.FFTools.FFmpegNative;
 using VDF.Core.Utils;
 
 namespace VDF.Core.FFTools {
@@ -30,6 +31,33 @@ namespace VDF.Core.FFTools {
 			}
 		}
 		const int TimeoutDuration = 15_000; //15 seconds
+
+		/// <summary>
+		/// When true, <see cref="GetMediaInfoNative"/> tries the native FFmpeg binding first
+		/// and falls back to the CLI only when it returns null. When false, the CLI is used
+		/// directly (same as <see cref="GetMediaInfo"/>).
+		/// </summary>
+		public static bool PreferNativeBinding = true;
+
+		/// <summary>
+		/// Extracts media info using the native FFmpeg binding when available and
+		/// <see cref="PreferNativeBinding"/> is true; falls back to the ffprobe CLI
+		/// when the native path returns null or when native binding is disabled.
+		/// </summary>
+		public static MediaInfo? GetMediaInfoNative(string path, bool extendedLogging) {
+			if (PreferNativeBinding) {
+				try {
+					var nativeResult = NativeMediaInfoExtractor.Extract(path);
+					if (nativeResult != null)
+						return nativeResult;
+				}
+				catch (Exception e) {
+					if (extendedLogging)
+						Logger.Instance.Info($"Native media info extraction failed on '{path}', falling back to CLI. Exception: {e.Message}");
+				}
+			}
+			return GetMediaInfo(path, extendedLogging);
+		}
 
 		public static MediaInfo? GetMediaInfo(string file, bool extendedLogging) {
 			var psi = new ProcessStartInfo {

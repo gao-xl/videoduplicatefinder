@@ -1,12 +1,17 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Similarity badge base style -->
+    <!-- ===== Similarity badge base style (pill-shaped) ===== -->
     <Style Selector="Border.similarity-badge">
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="10,3" />
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
     </Style>
     <Style Selector="Border.similarity-badge TextBlock">
         <Setter Property="FontSize" Value="12" />
@@ -38,18 +43,23 @@
         <Setter Property="Foreground" Value="{DynamicResource BadgeLowForeground}" />
     </Style>
 
-    <!-- Best quality badge overlay -->
+    <!-- ===== Best quality badge overlay (gradient accent) ===== -->
     <Style Selector="Border.best-badge">
         <Setter Property="Background" Value="{DynamicResource BestBadgeBackground}" />
-        <Setter Property="CornerRadius" Value="3" />
-        <Setter Property="Padding" Value="4,1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="6,2" />
         <Setter Property="HorizontalAlignment" Value="Left" />
         <Setter Property="VerticalAlignment" Value="Top" />
         <Setter Property="Margin" Value="2" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" Easing="CubicEaseInOut" />
+            </Transitions>
+        </Setter>
     </Style>
     <Style Selector="Border.best-badge TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource BestBadgeForeground}" />
         <Setter Property="FontSize" Value="10" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
     </Style>
 </Styles>

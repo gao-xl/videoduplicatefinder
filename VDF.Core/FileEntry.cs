@@ -84,6 +84,17 @@ namespace VDF.Core {
 		[MemoryPackIgnore]
 		internal bool invalid = true;
 
+		/// <summary>
+		/// When false, the entry was loaded in lightweight mode and its heavy fields
+		/// (grayBytes, PHashes, mediaInfo, AudioFingerprint) have not been populated
+		/// from the database yet. Defaults to true for backward compatibility.
+		/// </summary>
+		[MemoryPackIgnore]
+		internal bool _heavyFieldsLoaded = true;
+
+		[MemoryPackIgnore]
+		internal bool dirty;
+
 		// Transient compare-phase snapshot, built by ScanEngine.ScanForDuplicates and
 		// cleared when the phase ends. compareGray holds the gray-byte arrays aligned
 		// with the scan's thumbnail position order, comparePHash the first-position
@@ -94,6 +105,8 @@ namespace VDF.Core {
 		internal byte[]?[]? compareGray;
 		[MemoryPackIgnore]
 		internal ulong? comparePHash;
+		[MemoryPackIgnore]
+		internal ulong?[]? comparePHashes;
 		[MemoryPackIgnore]
 		internal int compareIndex;
 

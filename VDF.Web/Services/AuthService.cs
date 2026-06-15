@@ -12,7 +12,6 @@
 //     You should have received a copy of the GNU Affero General Public License
 //     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
 // */
-//
 
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +23,7 @@ namespace VDF.Web.Services {
 	/// Manages authentication for the WebUI.  On first launch a random password is
 	/// generated and printed to the console.  Users can override it via the
 	/// VDF_WEB_PASSWORD environment variable or disable auth entirely with VDF_WEB_AUTH=false.
+	/// Supports JWT access tokens, refresh tokens, and API key authentication.
 	/// </summary>
 	public sealed class AuthService {
 		internal sealed class StoredCredentials {
@@ -34,39 +34,53 @@ namespace VDF.Web.Services {
 		const string CookieName = "vdf_auth";
 		const int TokenExpirationDays = 30;
 		static readonly TimeSpan CookieMaxAge = TimeSpan.FromDays(TokenExpirationDays);
+		static readonly TimeSpan AccessTokenExpiry = TimeSpan.FromMinutes(15);
+		static readonly TimeSpan RefreshTokenExpiry = TimeSpan.FromDays(30);
 
 		readonly string _password;
 		readonly bool _authEnabled;
 		readonly HashSet<string> _validTokens = new();
+		readonly HashSet<string> _apiKeys = new(StringComparer.Ordinal);
 		readonly string _credentialsPath;
 		readonly ILogger<AuthService> _logger;
+		readonly JwtService _jwtService;
 
 		public bool AuthEnabled => _authEnabled;
 
-		public AuthService(ILogger<AuthService> logger) {
+		public AuthService(ILogger<AuthService> logger, JwtService jwtService) {
 			_logger = logger;
+			_jwtService = jwtService;
+
 			// Allow disabling auth entirely
 			var authEnv = Environment.GetEnvironmentVariable("VDF_WEB_AUTH");
 			if (string.Equals(authEnv, "false", StringComparison.OrdinalIgnoreCase)) {
 				_authEnabled = false;
 				_password = string.Empty;
 				_credentialsPath = string.Empty;
-				return;
-			}
-
-			_authEnabled = true;
-			_credentialsPath = GetCredentialsPath();
-
-			// Priority: env var > saved file > generate new
-			var envPassword = Environment.GetEnvironmentVariable("VDF_WEB_PASSWORD");
-			if (!string.IsNullOrWhiteSpace(envPassword)) {
-				_password = envPassword;
 			}
 			else {
-				_password = LoadOrGeneratePassword();
+				_authEnabled = true;
+				_credentialsPath = GetCredentialsPath();
+
+				// Priority: env var > saved file > generate new
+				var envPassword = Environment.GetEnvironmentVariable("VDF_WEB_PASSWORD");
+				if (!string.IsNullOrWhiteSpace(envPassword))
+					_password = envPassword;
+				else
+					_password = LoadOrGeneratePassword();
+
+				PrintPasswordBanner();
 			}
 
-			PrintPasswordBanner();
+			// Load API keys from environment variable
+			var apiKeysEnv = Environment.GetEnvironmentVariable("VDF_API_KEYS");
+			if (!string.IsNullOrWhiteSpace(apiKeysEnv)) {
+				foreach (var key in apiKeysEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
+					_apiKeys.Add(key);
+				}
+				if (_apiKeys.Count > 0)
+					_logger.LogInformation("Loaded {Count} API key(s) from VDF_API_KEYS", _apiKeys.Count);
+			}
 		}
 
 		public bool ValidatePassword(string password) {
@@ -76,6 +90,50 @@ namespace VDF.Web.Services {
 			byte[] actual = SHA256.HashData(Encoding.UTF8.GetBytes(password ?? string.Empty));
 			return _authEnabled && CryptographicOperations.FixedTimeEquals(expected, actual);
 		}
+
+		public bool ValidateApiKey(string key) {
+			if (string.IsNullOrEmpty(key)) return false;
+			lock (_apiKeys)
+				return _apiKeys.Contains(key);
+		}
+
+		/// <summary>
+		/// Generates a JWT access token with 15-minute expiry containing role claim.
+		/// </summary>
+		public string GenerateAccessToken() {
+			return _jwtService.GenerateToken("vdf-user", "admin", AccessTokenExpiry);
+		}
+
+		/// <summary>
+		/// Generates a random refresh token (30-day expiry), stored in the valid tokens set.
+		/// </summary>
+		public string GenerateRefreshToken() {
+			var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+			lock (_validTokens)
+				_validTokens.Add(token);
+			return token;
+		}
+
+		/// <summary>
+		/// Validates whether a refresh token is in the valid tokens set.
+		/// </summary>
+		public bool ValidateRefreshToken(string token) {
+			if (string.IsNullOrEmpty(token)) return false;
+			lock (_validTokens)
+				return _validTokens.Contains(token);
+		}
+
+		/// <summary>
+		/// Validates a refresh token and issues a new access token.
+		/// Returns null if the refresh token is invalid.
+		/// </summary>
+		public string? RefreshAccessToken(string refreshToken) {
+			if (!ValidateRefreshToken(refreshToken))
+				return null;
+			return GenerateAccessToken();
+		}
+
+		// --- Legacy cookie-based auth methods (kept for backward compatibility) ---
 
 		public string IssueToken() {
 			var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -92,6 +150,11 @@ namespace VDF.Web.Services {
 
 		public bool IsAuthenticated(HttpContext ctx) {
 			if (!_authEnabled) return true;
+			// Check JWT Bearer token first
+			var user = ctx.User;
+			if (user?.Identity?.IsAuthenticated == true)
+				return true;
+			// Fall back to cookie
 			return ctx.Request.Cookies.TryGetValue(CookieName, out var token) && ValidateToken(token);
 		}
 
@@ -99,8 +162,6 @@ namespace VDF.Web.Services {
 			ctx.Response.Cookies.Append(CookieName, token, new CookieOptions {
 				HttpOnly = true,
 				SameSite = SameSiteMode.Strict,
-				// Persistent: survives browser restarts for 30 days.
-				// Otherwise: session cookie, gone when the browser closes.
 				MaxAge = persistent ? CookieMaxAge : null,
 				IsEssential = true,
 			});
