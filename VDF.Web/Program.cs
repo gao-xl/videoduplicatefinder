@@ -66,7 +66,9 @@ if (File.Exists(configPath)) {
 			}
 		}
 	}
-	catch { /* ignore parse errors, fall back to env vars */ }
+	catch (Exception ex) {
+		Console.WriteLine($"Warning: Failed to parse config.json at {configPath}: {ex.Message}");
+	}
 }
 
 // ── VDF_BASE_PATH: serve the app under a sub-path when behind a reverse proxy ──
@@ -85,7 +87,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<WebConfigService>();
 
 // Create JwtService early so it can be used for both DI and JWT Bearer configuration
-var jwtService = new JwtService(LoggerFactory.Create(b => { }).CreateLogger<JwtService>());
+// Use NullLogger to avoid leaking disposable LoggerFactory resources
+var jwtService = new JwtService(Microsoft.Extensions.Logging.Abstractions.NullLogger<JwtService>.Instance);
 builder.Services.AddSingleton(jwtService);
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<WebSettingsService>();
@@ -146,6 +149,15 @@ builder.Services.AddRateLimiter(options => {
 			context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
 			_ => new FixedWindowRateLimiterOptions {
 				PermitLimit = 5,
+				Window = TimeSpan.FromMinutes(1),
+				QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+				QueueLimit = 0,
+			}));
+	options.AddPolicy("scan", context =>
+		RateLimitPartition.GetFixedWindowLimiter(
+			context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+			_ => new FixedWindowRateLimiterOptions {
+				PermitLimit = 3,
 				Window = TimeSpan.FromMinutes(1),
 				QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
 				QueueLimit = 0,
@@ -307,87 +319,6 @@ app.Use(async (ctx, next) => {
 	await next();
 });
 
-// ── Legacy Blazor Server endpoints (kept for backward compatibility) ──
-
-// Login endpoint — returns JSON with access_token and refresh_token
-app.MapPost("/auth/login", async (HttpContext ctx, AuthService auth) => {
-	// Support both form-encoded (browser) and JSON (API) requests
-	string? password;
-	string? returnUrl;
-	bool remember;
-
-	var contentType = ctx.Request.ContentType ?? "";
-	if (contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
-		using var reader = new StreamReader(ctx.Request.Body, Encoding.UTF8);
-		var body = await reader.ReadToEndAsync();
-		var json = System.Text.Json.JsonDocument.Parse(body);
-		password = json.RootElement.TryGetProperty("password", out var pwEl) ? pwEl.GetString() : null;
-		returnUrl = json.RootElement.TryGetProperty("returnUrl", out var ruEl) ? ruEl.GetString() : null;
-		remember = json.RootElement.TryGetProperty("remember", out var remEl) && remEl.GetBoolean();
-	}
-	else {
-		var form = await ctx.Request.ReadFormAsync();
-		password = form["password"].ToString();
-		returnUrl = form["returnUrl"].ToString();
-		remember = form["remember"] == "true";
-	}
-
-	if (auth.ValidatePassword(password ?? string.Empty)) {
-		var accessToken = auth.GenerateAccessToken();
-		var refreshToken = auth.GenerateRefreshToken();
-
-		// Also set cookie for backward compatibility with browser UI
-		auth.SetAuthCookie(ctx, refreshToken, remember);
-
-		// If the request came from a browser form, redirect
-		if (!contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
-			ctx.Response.Redirect(RedirectHelper.SafeReturnUrl(returnUrl));
-			return;
-		}
-
-		// For API clients, return JSON
-		ctx.Response.ContentType = "application/json";
-		await ctx.Response.WriteAsJsonAsync(new {
-			access_token = accessToken,
-			refresh_token = refreshToken,
-			expires_in = 900, // 15 minutes in seconds
-		});
-	}
-	else {
-		if (!contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
-			var qs = "?error=1";
-			var safeReturn = RedirectHelper.SafeReturnUrl(returnUrl);
-			if (safeReturn != "/")
-				qs += $"&returnUrl={Uri.EscapeDataString(safeReturn)}";
-			ctx.Response.Redirect($"/login{qs}");
-			return;
-		}
-		ctx.Response.StatusCode = 401;
-		await ctx.Response.WriteAsJsonAsync(new { error = "invalid_credentials" });
-	}
-}).RequireRateLimiting("login");
-app.MapPost("/auth/refresh", (HttpContext ctx, AuthService auth) => {
-	if (!ctx.Request.HasJsonContentType()) {
-		ctx.Response.StatusCode = 400;
-		return Results.Json(new { error = "invalid_request" });
-	}
-	// Read refresh token from JSON body
-	using var reader = new StreamReader(ctx.Request.Body, Encoding.UTF8);
-	var body = reader.ReadToEnd();
-	var json = System.Text.Json.JsonDocument.Parse(body);
-	var refreshToken = json.RootElement.TryGetProperty("refresh_token", out var rtEl) ? rtEl.GetString() : null;
-
-	var newAccessToken = auth.RefreshAccessToken(refreshToken ?? string.Empty);
-	if (newAccessToken == null) {
-		return Results.Json(new { error = "invalid_refresh_token" }, statusCode: 401);
-	}
-
-	return Results.Json(new {
-		access_token = newAccessToken,
-		expires_in = 900,
-	});
-});
-
 // HQ thumbnail endpoint — extracts a fresh frame using configurable resolution and quality.
 // Used by the card-based results view for crisp thumbnails.
 var webSettings = app.Services.GetRequiredService<WebSettingsService>();
@@ -412,18 +343,8 @@ app.MapGet("/thumbnail/hq", async (HttpContext ctx, ScanService scan) => {
 
 	string cacheKey = $"{path}|{position.TotalSeconds:F2}|{width}|{quality}";
 
-	var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
-	if (scan.HqThumbCache.TryAdd(cacheKey, lazy)) {
-		if (scan.HqThumbCache.Count > 4096) {
-			lock (scan.HqThumbCacheLock) {
-				if (scan.HqThumbCache.Count > 4096) {
-					scan.HqThumbCache.Clear();
-					scan.HqThumbCache.TryAdd(cacheKey, lazy);
-				}
-			}
-		}
-	}
-	var jpeg = await Task.Run(() => scan.HqThumbCache[cacheKey].Value);
+	var jpeg = scan.HqThumbCache.GetOrAdd(cacheKey,
+		() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
 	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 	ctx.Response.ContentType = "image/jpeg";
@@ -446,18 +367,8 @@ app.MapGet("/thumbnail/full", async (HttpContext ctx, ScanService scan) => {
 
 	string cacheKey = $"{path}|{position.TotalSeconds:F2}|full";
 
-	var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
-	if (scan.FullThumbCache.TryAdd(cacheKey, lazy)) {
-		if (scan.FullThumbCache.Count > 64) {
-			lock (scan.FullThumbCacheLock) {
-				if (scan.FullThumbCache.Count > 64) {
-					scan.FullThumbCache.Clear();
-					scan.FullThumbCache.TryAdd(cacheKey, lazy);
-				}
-			}
-		}
-	}
-	var jpeg = await Task.Run(() => scan.FullThumbCache[cacheKey].Value);
+	var jpeg = scan.FullThumbCache.GetOrAdd(cacheKey,
+		() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
 	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 	ctx.Response.ContentType = "image/jpeg";
@@ -517,7 +428,8 @@ app.MapHub<ScanHub>("/scanhub");
 app.MapFallbackToFile("index.html");
 
 // Kick off FFmpeg availability check / auto-download in background
-var ffmpegSetup = app.Services.GetRequiredService<FFmpegSetupService>();
-_ = ffmpegSetup.CheckAndSetupAsync();
+var ffmpegSetup = app.Services.GetService<FFmpegSetupService>();
+if (ffmpegSetup != null)
+	_ = ffmpegSetup.CheckAndSetupAsync();
 
 app.Run();

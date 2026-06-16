@@ -120,13 +120,17 @@ export async function removeItems(req: RemoveItemsRequest): Promise<{ removed: n
 }
 
 export async function exportCsv(): Promise<Blob> {
-  const token = localStorage.getItem('vdf-access-token')
+  const { getToken, ApiError } = await import('./client')
+  const token = getToken()
   const res = await fetch('/api/results/export/csv', {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: token ? `Bearer ${token}` : '',
+      Accept: 'text/csv',
     },
   })
-  if (!res.ok) throw new Error(`Export failed: ${res.status}`)
+  if (!res.ok) {
+    throw new ApiError(res.status, `Export failed: ${res.status}`)
+  }
   return res.blob()
 }
 

@@ -62,14 +62,9 @@ namespace VDF.Web.Services {
 		public IReadOnlyCollection<DuplicateItem> Duplicates => _engine.Duplicates;
 		public Settings Settings => _engine.Settings;
 
-		/// <summary>Caches for the thumbnail endpoints — cleared whenever the results change wholesale.</summary>
-		public System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<byte[]>> HqThumbCache { get; } = new();
-		public System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<byte[]>> FullThumbCache { get; } = new();
-
-		/// <summary>Lock objects used to serialize cache eviction so that only one thread
-		/// clears and re-adds at a time, preventing the stampede race condition.</summary>
-		public object HqThumbCacheLock { get; } = new();
-		public object FullThumbCacheLock { get; } = new();
+		/// <summary>Caches for the thumbnail endpoints — LRU eviction with size limits.</summary>
+		public VDF.Web.Endpoints.ThumbnailLruCache HqThumbCache { get; } = new(maxSize: 2048);
+		public VDF.Web.Endpoints.ThumbnailLruCache FullThumbCache { get; } = new(maxSize: 64);
 
 		void ClearThumbnailCaches() {
 			HqThumbCache.Clear();
@@ -119,6 +114,8 @@ namespace VDF.Web.Services {
 
 		public void StartScanAndCompare() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;
+			_cts?.Cancel();
+			_cts?.Dispose();
 			_cts = new CancellationTokenSource();
 			State = ScanState.Scanning;
 			ErrorMessage = null;
@@ -431,7 +428,7 @@ namespace VDF.Web.Services {
 		public async Task<int> CleanDatabaseAsync() {
 			await ScanEngine.LoadDatabase();
 			int before = DatabaseEntryCount;
-			await Task.Run(() => _engine.CleanupDatabase());
+			await _engine.CleanupDatabaseAsync();
 			return before - DatabaseEntryCount;
 		}
 

@@ -1,7 +1,54 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using VDF.Core;
 using VDF.Web.Services;
 
 namespace VDF.Web.Endpoints;
+
+/// <summary>
+/// Simple LRU cache that tracks access time and evicts oldest entries when the limit is reached.
+/// </summary>
+public sealed class ThumbnailLruCache {
+	readonly ConcurrentDictionary<string, (Lazy<byte[]> Value, long LastAccess)> _cache = new();
+	readonly int _maxSize;
+	readonly object _evictLock = new();
+
+	public int Count => _cache.Count;
+
+	public ThumbnailLruCache(int maxSize) {
+		_maxSize = maxSize;
+	}
+
+	public byte[]? GetOrAdd(string key, Func<byte[]> valueFactory) {
+		var entry = _cache.AddOrUpdate(
+			key,
+			_ => (new Lazy<byte[]>(valueFactory), Stopwatch.GetTimestamp()),
+			(_, existing) => (existing.Value, Stopwatch.GetTimestamp()));
+
+		// Check size and evict if needed
+		if (_cache.Count > _maxSize) {
+			lock (_evictLock) {
+				if (_cache.Count > _maxSize) {
+					int toEvict = _maxSize / 4;
+					var oldest = _cache
+						.OrderBy(kvp => kvp.Value.LastAccess)
+						.Take(toEvict)
+						.Select(kvp => kvp.Key)
+						.ToList();
+					foreach (var k in oldest) {
+						_cache.TryRemove(k, out _);
+					}
+				}
+			}
+		}
+
+		return entry.Value.Value;
+	}
+
+	public void Clear() {
+		_cache.Clear();
+	}
+}
 
 static class ThumbnailEndpoints {
 	public static WebApplication MapThumbnailApi(this WebApplication app) {
@@ -28,20 +75,8 @@ static class ThumbnailEndpoints {
 
 			string cacheKey = $"{path}|{position.TotalSeconds:F2}|{width}|{quality}";
 
-			var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
-			if (scan.HqThumbCache.TryAdd(cacheKey, lazy)) {
-				// We added a new entry — check size and evict if needed
-				if (scan.HqThumbCache.Count > 4096) {
-					lock (scan.HqThumbCacheLock) {
-						if (scan.HqThumbCache.Count > 4096) {
-							scan.HqThumbCache.Clear();
-							scan.HqThumbCache.TryAdd(cacheKey, lazy);
-						}
-					}
-				}
-			}
-			// Use the existing or newly-added Lazy — only one thread actually runs the delegate
-			var jpeg = await Task.Run(() => scan.HqThumbCache[cacheKey].Value);
+			var jpeg = scan.HqThumbCache.GetOrAdd(cacheKey,
+				() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
 			if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 			ctx.Response.ContentType = "image/jpeg";
@@ -64,20 +99,8 @@ static class ThumbnailEndpoints {
 
 			string cacheKey = $"{path}|{position.TotalSeconds:F2}|full";
 
-			var lazy = new Lazy<byte[]>(() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
-			if (scan.FullThumbCache.TryAdd(cacheKey, lazy)) {
-				// We added a new entry — check size and evict if needed
-				if (scan.FullThumbCache.Count > 64) {
-					lock (scan.FullThumbCacheLock) {
-						if (scan.FullThumbCache.Count > 64) {
-							scan.FullThumbCache.Clear();
-							scan.FullThumbCache.TryAdd(cacheKey, lazy);
-						}
-					}
-				}
-			}
-			// Use the existing or newly-added Lazy — only one thread actually runs the delegate
-			var jpeg = await Task.Run(() => scan.FullThumbCache[cacheKey].Value);
+			var jpeg = scan.FullThumbCache.GetOrAdd(cacheKey,
+				() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
 			if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
 
 			ctx.Response.ContentType = "image/jpeg";

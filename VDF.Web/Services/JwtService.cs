@@ -85,7 +85,24 @@ namespace VDF.Web.Services {
 				var principal = _tokenHandler.ValidateToken(token, _validationParameters, out _);
 				return principal;
 			}
-			catch {
+			catch (SecurityTokenSignatureKeyNotFoundException) {
+				_logger.LogDebug("Token validation failed: signature key not found");
+				return null;
+			}
+			catch (SecurityTokenInvalidSignatureException) {
+				_logger.LogDebug("Token validation failed: invalid signature");
+				return null;
+			}
+			catch (SecurityTokenExpiredException) {
+				_logger.LogDebug("Token validation failed: token expired");
+				return null;
+			}
+			catch (SecurityTokenInvalidLifetimeException) {
+				_logger.LogDebug("Token validation failed: invalid lifetime");
+				return null;
+			}
+			catch (Exception ex) {
+				_logger.LogWarning(ex, "Token validation failed: {Message}", ex.Message);
 				return null;
 			}
 		}
@@ -112,6 +129,20 @@ namespace VDF.Web.Services {
 				Directory.CreateDirectory(Path.GetDirectoryName(keyPath)!);
 				File.WriteAllText(keyPath,
 					System.Text.Json.JsonSerializer.Serialize(new StoredSigningKey { Key = Convert.ToBase64String(newKey) }));
+
+				// Set restrictive file permissions on Linux/macOS (0600 = owner read/write only)
+				if (!OperatingSystem.IsWindows()) {
+					var psi = new System.Diagnostics.ProcessStartInfo {
+						FileName = "chmod",
+						Arguments = $"600 \"{keyPath}\"",
+						RedirectStandardOutput = true,
+						RedirectStandardError = true,
+						UseShellExecute = false,
+						CreateNoWindow = true,
+					};
+					using var process = System.Diagnostics.Process.Start(psi);
+					process?.WaitForExit(5000);
+				}
 			}
 			catch (Exception ex) {
 				_logger.LogWarning(ex, "Failed to persist JWT signing key to {Path}", keyPath);

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { thumbnailUrl, type DuplicateItemDto } from '../api/results'
 
 interface CompareModalProps {
@@ -15,6 +15,61 @@ export function CompareModal({ items, onClose }: CompareModalProps) {
   const [swipePos, setSwipePos] = useState(50)
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    // Save previous focus
+    previousFocusRef.current = document.activeElement as HTMLElement
+
+    // Focus the modal
+    if (modalRef.current) {
+      modalRef.current.focus()
+    }
+
+    // Trap focus within modal
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !modalRef.current) return
+
+      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleTab)
+
+    // Restore focus on unmount
+    return () => {
+      document.removeEventListener('keydown', handleTab)
+      previousFocusRef.current?.focus()
+    }
+  }, [])
 
   const handleMouseDown = useCallback(() => { dragging.current = true }, [])
   const handleMouseUp = useCallback(() => { dragging.current = false }, [])
@@ -32,16 +87,23 @@ export function CompareModal({ items, onClose }: CompareModalProps) {
   if (!leftItem || !rightItem) return null
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1200,
-      background: 'rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      flexDirection: 'column',
-      animation: 'fadeIn 0.2s ease',
-    }}
+    <div
+      ref={modalRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Compare files"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1200,
+        background: 'rgba(0,0,0,0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        flexDirection: 'column',
+        animation: 'fadeIn 0.2s ease',
+        outline: 'none',
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       {/* Top bar */}

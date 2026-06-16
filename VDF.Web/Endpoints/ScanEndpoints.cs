@@ -16,7 +16,7 @@ static class ScanEndpoints {
 				return Results.Json(new { error = "scan_already_running" }, statusCode: 409);
 			scan.StartScanAndCompare();
 			return Results.Json(new { scanId = Guid.NewGuid().ToString("N")[..8] }, statusCode: 202);
-		});
+		}).RequireRateLimiting("scan");
 
 		// POST /api/scan/stop — stop current scan
 		group.MapPost("/stop", (ScanService scan) => {
@@ -74,6 +74,14 @@ static class ScanEndpoints {
 				return Results.Json(new { error = "scan_running" }, statusCode: 400);
 			scan.Reset();
 			return Results.Ok(new { status = "reset" });
+		});
+
+		// POST /api/scan/clear-database — clear the entire scan database
+		group.MapPost("/clear-database", (ScanService scan) => {
+			if (scan.State == ScanState.Scanning || scan.State == ScanState.Comparing)
+				return Results.Json(new { error = "scan_running" }, statusCode: 400);
+			VDF.Core.Utils.DatabaseUtils.ClearDatabase();
+			return Results.Ok(new { status = "database_cleared" });
 		});
 
 		return app;

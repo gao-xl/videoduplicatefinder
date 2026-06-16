@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSettings, updateSettings } from '../api/settings'
-import { resetScan } from '../api/scan'
+import { resetScan, clearDatabase } from '../api/scan'
 import { useSignalR } from '../hooks/useSignalR'
 import { useSSE } from '../hooks/useSSE'
 import { ProgressBar } from '../components/shared/ProgressBar'
@@ -29,6 +29,7 @@ export function ScanPage() {
   const scanProgress = realtime.progress
 
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showClearDbConfirm, setShowClearDbConfirm] = useState(false)
   const [showPathBrowser, setShowPathBrowser] = useState(false)
   const [pathBrowserTarget, setPathBrowserTarget] = useState<'include' | 'exclude'>('include')
   const [newPath, setNewPath] = useState('')
@@ -55,15 +56,19 @@ export function ScanPage() {
 
   const handleAddIncludePath = useCallback(() => {
     if (!newPath.trim()) return
-    setLocalIncludePaths(prev => [...prev, newPath.trim()])
-    updateSettingsMutation.mutate({ includeList: [...localIncludePaths, newPath.trim()], blackList: localExcludePaths })
+    const path = newPath.trim()
+    const updated = [...localIncludePaths, path]
+    setLocalIncludePaths(updated)
+    updateSettingsMutation.mutate({ includeList: updated, blackList: localExcludePaths })
     setNewPath('')
   }, [newPath, localIncludePaths, localExcludePaths, updateSettingsMutation])
 
   const handleAddExcludePath = useCallback(() => {
     if (!newPath.trim()) return
-    setLocalExcludePaths(prev => [...prev, newPath.trim()])
-    updateSettingsMutation.mutate({ includeList: localIncludePaths, blackList: [...localExcludePaths, newPath.trim()] })
+    const path = newPath.trim()
+    const updated = [...localExcludePaths, path]
+    setLocalExcludePaths(updated)
+    updateSettingsMutation.mutate({ includeList: localIncludePaths, blackList: updated })
     setNewPath('')
   }, [newPath, localIncludePaths, localExcludePaths, updateSettingsMutation])
 
@@ -208,6 +213,12 @@ export function ScanPage() {
               onClick={() => setShowResetConfirm(true)}
             >
               Reset
+            </button>
+            <button
+              className="toolbar-btn"
+              onClick={() => setShowClearDbConfirm(true)}
+            >
+              Clear Database
             </button>
           </div>
         </div>
@@ -482,11 +493,13 @@ export function ScanPage() {
         open={showPathBrowser}
         onSelect={(path) => {
           if (pathBrowserTarget === 'include') {
-            setLocalIncludePaths(prev => [...prev, path])
-            updateSettingsMutation.mutate({ includeList: [...localIncludePaths, path], blackList: localExcludePaths })
+            const updated = [...localIncludePaths, path]
+            setLocalIncludePaths(updated)
+            updateSettingsMutation.mutate({ includeList: updated, blackList: localExcludePaths })
           } else {
-            setLocalExcludePaths(prev => [...prev, path])
-            updateSettingsMutation.mutate({ includeList: localIncludePaths, blackList: [...localExcludePaths, path] })
+            const updated = [...localExcludePaths, path]
+            setLocalExcludePaths(updated)
+            updateSettingsMutation.mutate({ includeList: localIncludePaths, blackList: updated })
           }
         }}
         onClose={() => setShowPathBrowser(false)}
@@ -501,6 +514,17 @@ export function ScanPage() {
         variant="danger"
         onConfirm={() => { resetScan(); setShowResetConfirm(false) }}
         onCancel={() => setShowResetConfirm(false)}
+      />
+
+      {/* Clear Database Confirm */}
+      <ConfirmDialog
+        open={showClearDbConfirm}
+        title="Clear Database"
+        message="This will delete all cached scan data including file hashes and thumbnails. Next scan will re-process all files. This cannot be undone."
+        confirmLabel="Clear Database"
+        variant="danger"
+        onConfirm={() => { clearDatabase(); setShowClearDbConfirm(false) }}
+        onCancel={() => setShowClearDbConfirm(false)}
       />
     </div>
   )

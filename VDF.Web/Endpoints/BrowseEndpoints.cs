@@ -14,12 +14,13 @@
 // */
 
 using System.Security.Cryptography;
+using VDF.Web.Services;
 
 namespace VDF.Web.Endpoints;
 
 static class BrowseEndpoints {
 	public static WebApplication MapBrowseApi(this WebApplication app) {
-		app.MapPost("/api/browse", async (HttpRequest request) => {
+		app.MapPost("/api/browse", async (HttpRequest request, ScanService scan) => {
 			try {
 				using var reader = new StreamReader(request.Body);
 				var body = await reader.ReadToEndAsync();
@@ -30,6 +31,25 @@ static class BrowseEndpoints {
 					path = "/";
 
 				path = Path.GetFullPath(path);
+
+				// Security: restrict browsing to configured scan directories only
+				var allowedRoots = scan.Settings.IncludeList
+					.Where(d => !string.IsNullOrEmpty(d))
+					.Select(d => Path.GetFullPath(d))
+					.ToList();
+
+				// Deny browsing entirely if no scan directories are configured
+				if (allowedRoots.Count == 0) {
+					return Results.Json(new { error = "no_scan_dirs", message = "No scan directories configured. Add directories in Settings first." }, statusCode: 403);
+				}
+
+				bool isAllowed = allowedRoots.Any(root =>
+					path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
+					path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+					path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+
+				if (!isAllowed)
+					return Results.Json(new { error = "access_denied", message = "Path is not within configured scan directories" }, statusCode: 403);
 
 				if (!Directory.Exists(path))
 					return Results.NotFound(new { error = "directory_not_found" });

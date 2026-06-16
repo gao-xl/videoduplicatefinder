@@ -145,13 +145,18 @@ export function ResultsPage() {
   }, [])
 
   const handleExport = useCallback(async () => {
-    const blob = await exportCsv()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'vdf-results.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const blob = await exportCsv()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'vdf-results.csv'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('CSV export failed:', err)
+      alert(err instanceof Error ? err.message : 'Export failed')
+    }
   }, [])
 
   // Close context menu on click outside

@@ -30,6 +30,10 @@ namespace VDF.Web.Services {
 		internal sealed class StoredCredentials {
 			[JsonPropertyName("password")]
 			public string? Password { get; set; }
+			[JsonPropertyName("passwordHash")]
+			public string? PasswordHash { get; set; }
+			[JsonPropertyName("passwordSalt")]
+			public string? PasswordSalt { get; set; }
 		}
 
 		private record RefreshTokenEntry(DateTime CreatedAt, DateTime LastUsedAt);
@@ -42,6 +46,8 @@ namespace VDF.Web.Services {
 		const int MaxSessionsPerUser = 5;
 
 		readonly string _password;
+		string? _passwordHash;
+		string? _passwordSalt;
 		readonly bool _authEnabled;
 		readonly ConcurrentDictionary<string, RefreshTokenEntry> _validTokens = new(StringComparer.Ordinal);
 		readonly HashSet<string> _apiKeys = new(StringComparer.Ordinal);
@@ -100,17 +106,39 @@ namespace VDF.Web.Services {
 		}
 
 		public bool ValidatePassword(string password) {
-			// Hash both sides so the comparison is constant-time and leaks neither
-			// content nor length differences.
+			if (!_authEnabled) return false;
+
+			// Check if we have a PBKDF2 hash stored
+			if (!string.IsNullOrEmpty(_passwordHash) && !string.IsNullOrEmpty(_passwordSalt)) {
+				byte[] salt = Convert.FromBase64String(_passwordSalt);
+				byte[] hash = Convert.FromBase64String(_passwordHash);
+				byte[] candidateHash = Rfc2898DeriveBytes.Pbkdf2(
+					Encoding.UTF8.GetBytes(password ?? string.Empty),
+					salt,
+					100_000,
+					HashAlgorithmName.SHA256,
+					32);
+				return CryptographicOperations.FixedTimeEquals(hash, candidateHash);
+			}
+
+			// Legacy: compare against plaintext password (for backward compatibility)
 			byte[] expected = SHA256.HashData(Encoding.UTF8.GetBytes(_password));
 			byte[] actual = SHA256.HashData(Encoding.UTF8.GetBytes(password ?? string.Empty));
-			return _authEnabled && CryptographicOperations.FixedTimeEquals(expected, actual);
+			return CryptographicOperations.FixedTimeEquals(expected, actual);
 		}
 
 		public bool ValidateApiKey(string key) {
 			if (string.IsNullOrEmpty(key)) return false;
-			lock (_apiKeys)
-				return _apiKeys.Contains(key);
+			// Use constant-time comparison to prevent timing attacks
+			byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+			lock (_apiKeys) {
+				foreach (var validKey in _apiKeys) {
+					byte[] validBytes = Encoding.UTF8.GetBytes(validKey);
+					if (keyBytes.Length == validBytes.Length && CryptographicOperations.FixedTimeEquals(keyBytes, validBytes))
+						return true;
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -240,8 +268,17 @@ namespace VDF.Web.Services {
 			if (File.Exists(_credentialsPath)) {
 				try {
 					var saved = JsonSerializer.Deserialize(File.ReadAllText(_credentialsPath), WebJsonContext.Default.StoredCredentials);
-					if (!string.IsNullOrWhiteSpace(saved?.Password))
-						return saved.Password;
+					if (saved != null) {
+						// Load PBKDF2 hash if available
+						if (!string.IsNullOrWhiteSpace(saved.PasswordHash) && !string.IsNullOrWhiteSpace(saved.PasswordSalt)) {
+							_passwordHash = saved.PasswordHash;
+							_passwordSalt = saved.PasswordSalt;
+							return string.Empty; // Password validation uses hash
+						}
+						// Legacy: load plaintext password
+						if (!string.IsNullOrWhiteSpace(saved.Password))
+							return saved.Password;
+					}
 				}
 				catch (Exception ex) { _logger.LogWarning(ex, "Failed to load credentials file, generating new password"); }
 			}
@@ -255,8 +292,19 @@ namespace VDF.Web.Services {
 		void SavePassword(string password) {
 			try {
 				Directory.CreateDirectory(Path.GetDirectoryName(_credentialsPath)!);
+				// Hash password with PBKDF2 before storing
+				byte[] salt = RandomNumberGenerator.GetBytes(16);
+				byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
+					Encoding.UTF8.GetBytes(password),
+					salt,
+					100_000,
+					HashAlgorithmName.SHA256,
+					32);
 				File.WriteAllText(_credentialsPath,
-					JsonSerializer.Serialize(new StoredCredentials { Password = password }, WebJsonContext.Default.StoredCredentials));
+					JsonSerializer.Serialize(new StoredCredentials {
+						PasswordHash = Convert.ToBase64String(hash),
+						PasswordSalt = Convert.ToBase64String(salt)
+					}, WebJsonContext.Default.StoredCredentials));
 			}
 			catch (Exception ex) { _logger.LogError(ex, "Failed to save credentials file"); }
 		}
@@ -274,10 +322,8 @@ namespace VDF.Web.Services {
 		static string GeneratePassword() {
 			const string chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
 			return string.Create(10, chars, (span, c) => {
-				Span<byte> random = stackalloc byte[span.Length];
-				RandomNumberGenerator.Fill(random);
 				for (int i = 0; i < span.Length; i++)
-					span[i] = c[random[i] % c.Length];
+					span[i] = c[RandomNumberGenerator.GetInt32(c.Length)];
 			});
 		}
 

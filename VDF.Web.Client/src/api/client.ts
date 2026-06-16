@@ -4,6 +4,9 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
 }
 
+// Refresh lock to prevent multiple simultaneous token refresh attempts
+let refreshPromise: Promise<string | null> | null = null
+
 function getToken(): string | null {
   return localStorage.getItem('vdf-access-token')
 }
@@ -19,26 +22,37 @@ function clearTokens() {
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('vdf-refresh-token')
-  if (!refreshToken) return null
+  // If a refresh is already in progress, wait for it
+  if (refreshPromise) {
+    return refreshPromise
+  }
 
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-    if (!res.ok) {
+  refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem('vdf-refresh-token')
+    if (!refreshToken) return null
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+      if (!res.ok) {
+        clearTokens()
+        return null
+      }
+      const data = await res.json()
+      localStorage.setItem('vdf-access-token', data.access_token)
+      return data.access_token
+    } catch {
       clearTokens()
       return null
+    } finally {
+      refreshPromise = null
     }
-    const data = await res.json()
-    localStorage.setItem('vdf-access-token', data.access_token)
-    return data.access_token
-  } catch {
-    clearTokens()
-    return null
-  }
+  })()
+
+  return refreshPromise
 }
 
 export async function apiRequest<T>(
@@ -67,15 +81,21 @@ export async function apiRequest<T>(
     const newToken = await refreshAccessToken()
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`)
-      const retry = await fetch(`${API_BASE}${endpoint}`, {
-        ...rest,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      })
-      if (!retry.ok) {
-        throw new ApiError(retry.status, await retry.text())
+      // Only retry safe methods (GET, HEAD) to avoid duplicate side effects
+      const method = (rest.method || 'GET').toUpperCase()
+      if (method === 'GET' || method === 'HEAD') {
+        const retry = await fetch(`${API_BASE}${endpoint}`, {
+          ...rest,
+          headers,
+        })
+        if (!retry.ok) {
+          throw new ApiError(retry.status, await retry.text())
+        }
+        if (retry.status === 204) return undefined as T
+        return retry.json() as Promise<T>
       }
-      return retry.json() as Promise<T>
+      // For non-safe methods, don't retry to avoid duplicate operations
+      throw new ApiError(401, 'Session expired - please retry your action')
     }
     clearTokens()
     window.location.href = '/login'

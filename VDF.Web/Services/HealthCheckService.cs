@@ -46,13 +46,13 @@ public sealed class HealthCheckService {
 	static bool CheckDatabaseAccessible() {
 		try {
 			string dbFolder = CoreUtils.ResolveDatabaseFolder(null);
-			if (!Directory.Exists(dbFolder))
+			if (!Directory.Exists(dbFolder)) {
+				// Try to create the directory
 				Directory.CreateDirectory(dbFolder);
-			// Verify write access by testing a temp file in the database directory
-			string testFile = Path.Combine(dbFolder, $".healthcheck-{Guid.NewGuid():N}");
-			File.WriteAllText(testFile, "ok");
-			File.Delete(testFile);
-			return true;
+			}
+			// Verify the directory exists and is accessible
+			// This avoids creating temp files on every health check
+			return Directory.Exists(dbFolder);
 		}
 		catch {
 			return false;

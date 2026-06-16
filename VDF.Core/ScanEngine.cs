@@ -1184,7 +1184,9 @@ namespace VDF.Core {
 
 								// Merge comp's group into base's group
 								Guid absorbedGroupId = existingComp.GroupId;
-								List<DuplicateItem> baseMembers = groupMembers[existingBase.GroupId];
+								if (!groupMembers.TryGetValue(existingBase.GroupId, out List<DuplicateItem> baseMembers)) {
+									return; // Group was removed by another thread
+								}
 								lock (baseMembers) {
 									if (groupMembers.TryGetValue(absorbedGroupId, out var absorbedMembers)) {
 										lock (absorbedMembers) {
@@ -1214,8 +1216,9 @@ namespace VDF.Core {
 						}
 						var newItem = new DuplicateItem(compItem, difference, groupId, flags);
 						if (duplicateDict.TryAdd(compItem.Path, newItem)) {
-							List<DuplicateItem> members = groupMembers[groupId];
-							lock (members) { members.Add(newItem); }
+							if (groupMembers.TryGetValue(groupId, out var members)) {
+								lock (members) { members.Add(newItem); }
+							}
 						}
 					}
 				}
@@ -1230,8 +1233,9 @@ namespace VDF.Core {
 						}
 						var newItem = new DuplicateItem(entry, difference, groupId, DuplicateFlags.None);
 						if (duplicateDict.TryAdd(entry.Path, newItem)) {
-							List<DuplicateItem> members = groupMembers[groupId];
-							lock (members) { members.Add(newItem); }
+							if (groupMembers.TryGetValue(groupId, out var members)) {
+								lock (members) { members.Add(newItem); }
+							}
 						}
 					}
 				}
@@ -2318,7 +2322,7 @@ namespace VDF.Core {
 				$"groups with >5 items: {groupsOver5}, >10 items: {groupsOver10}");
 		}
 
-		public async void CleanupDatabase() {
+		public async Task CleanupDatabaseAsync() {
 			await Task.Run(() => {
 				DatabaseUtils.CleanupDatabase();
 			});

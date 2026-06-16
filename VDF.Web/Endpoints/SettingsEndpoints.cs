@@ -72,10 +72,10 @@ static class SettingsEndpoints {
 			s.IncludeList = new HashSet<string>(dto.IncludeList, StringComparer.OrdinalIgnoreCase);
 			s.BlackList = new HashSet<string>(dto.BlackList, StringComparer.OrdinalIgnoreCase);
 			s.Threshhold = dto.Threshhold;
-			s.Percent = dto.Percent;
-			s.PercentDurationDifference = dto.PercentDurationDifference;
-			s.MaxDegreeOfParallelism = dto.MaxDegreeOfParallelism;
-			s.ThumbnailCount = dto.ThumbnailCount;
+			s.Percent = Math.Clamp(dto.Percent, 0f, 100f);
+			s.PercentDurationDifference = Math.Clamp(dto.PercentDurationDifference, 0d, 100d);
+			s.MaxDegreeOfParallelism = Math.Clamp(dto.MaxDegreeOfParallelism, 1, Environment.ProcessorCount * 2);
+			s.ThumbnailCount = Math.Clamp(dto.ThumbnailCount, 0, 20);
 			s.IncludeSubDirectories = dto.IncludeSubDirectories;
 			s.IncludeImages = dto.IncludeImages;
 			s.UsePHashing = dto.UsePHashing;
@@ -102,8 +102,8 @@ static class SettingsEndpoints {
 			s.DurationDifferenceMaxSeconds = dto.DurationDifferenceMaxSeconds;
 			s.MaxSamplingDurationSeconds = dto.MaxSamplingDurationSeconds;
 			s.FilterByFileSize = dto.FilterByFileSize;
-			s.MinimumFileSize = dto.MinimumFileSize;
-			s.MaximumFileSize = dto.MaximumFileSize;
+			s.MinimumFileSize = Math.Max(0, dto.MinimumFileSize);
+			s.MaximumFileSize = Math.Max(s.MinimumFileSize, dto.MaximumFileSize);
 			s.FilterByFilePathContains = dto.FilterByFilePathContains;
 			s.FilePathContainsTexts = dto.FilePathContainsTexts.ToList();
 			s.FilterByFilePathNotContains = dto.FilterByFilePathNotContains;

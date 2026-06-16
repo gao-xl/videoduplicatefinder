@@ -34,7 +34,7 @@ namespace VDF.Web.Services {
 			public byte Threshhold { get; set; } = 5;
 			public float Percent { get; set; } = 96f;
 			public double PercentDurationDifference { get; set; } = 20d;
-			public int MaxDegreeOfParallelism { get; set; } = 1;
+			public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
 			public int ThumbnailCount { get; set; } = 1;
 			public bool IncludeSubDirectories { get; set; } = true;
 			public bool IncludeImages { get; set; } = true;
@@ -48,7 +48,7 @@ namespace VDF.Web.Services {
 			public bool LogExcludedFiles { get; set; }
 			public bool UseNativeFfmpegBinding { get; set; }
 			[JsonConverter(typeof(JsonStringEnumConverter<FFHardwareAccelerationMode>))]
-			public FFHardwareAccelerationMode HardwareAccelerationMode { get; set; }
+			public FFHardwareAccelerationMode HardwareAccelerationMode { get; set; } = FFHardwareAccelerationMode.auto;
 			public string CustomFFArguments { get; set; } = string.Empty;
 			public string CustomDatabaseFolder { get; set; } = string.Empty;
 			public int DatabaseCheckpointIntervalMinutes { get; set; } = 5;

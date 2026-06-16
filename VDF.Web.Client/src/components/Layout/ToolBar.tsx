@@ -1,8 +1,8 @@
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { startScan, stopScan, pauseScan, resumeScan } from '../../api/scan'
-import { useSignalR } from '../../hooks/useSignalR'
-import { useSSE } from '../../hooks/useSSE'
+import { useScanState } from '../../contexts/ScanStateContext'
 
 interface ToolBarProps {
   showFilterBar: boolean
@@ -13,10 +13,8 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
   const location = useLocation()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const signalR = useSignalR()
-  const sse = useSSE()
-  const realtime = signalR.connected ? signalR : sse
-  const scanState = realtime.state
+  const { connected, transport, state: scanState } = useScanState()
+  const [error, setError] = useState<string | null>(null)
 
   const isScanning = scanState === 'Scanning' || scanState === 'Comparing'
   const isPaused = scanState === 'Paused'
@@ -25,6 +23,36 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
     mutationFn: startScan,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['scan-progress'] }),
   })
+
+  const handlePause = async () => {
+    try {
+      setError(null)
+      await pauseScan()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to pause scan')
+      setTimeout(() => setError(null), 3000)
+    }
+  }
+
+  const handleStop = async () => {
+    try {
+      setError(null)
+      await stopScan()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to stop scan')
+      setTimeout(() => setError(null), 3000)
+    }
+  }
+
+  const handleResume = async () => {
+    try {
+      setError(null)
+      await resumeScan()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resume scan')
+      setTimeout(() => setError(null), 3000)
+    }
+  }
 
   const currentPage = location.pathname === '/results' ? 'results'
     : location.pathname === '/settings' ? 'settings'
@@ -60,14 +88,14 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
           )}
           {isScanning && (
             <>
-              <button className="toolbar-btn" onClick={() => pauseScan()} title="Pause">
+              <button className="toolbar-btn" onClick={handlePause} title="Pause">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
                 </svg>
                 Pause
               </button>
-              <button className="toolbar-btn danger" onClick={() => stopScan()} title="Stop">
+              <button className="toolbar-btn danger" onClick={handleStop} title="Stop">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="4" y="4" width="16" height="16" rx="2" />
                 </svg>
@@ -77,13 +105,13 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
           )}
           {isPaused && (
             <>
-              <button className="toolbar-btn primary" onClick={() => resumeScan()} title="Resume">
+              <button className="toolbar-btn primary" onClick={handleResume} title="Resume">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5,3 19,12 5,21" />
                 </svg>
                 Resume
               </button>
-              <button className="toolbar-btn danger" onClick={() => stopScan()} title="Stop">
+              <button className="toolbar-btn danger" onClick={handleStop} title="Stop">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="4" y="4" width="16" height="16" rx="2" />
                 </svg>
@@ -129,7 +157,7 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
         alignItems: 'center',
         gap: 4,
         fontSize: 10,
-        color: signalR.connected ? 'var(--accent-success)' : sse.connected ? 'var(--accent-warning)' : 'var(--text-dim)',
+        color: connected ? 'var(--accent-success)' : 'var(--text-dim)',
         fontFamily: 'var(--font-mono)',
         paddingRight: 4,
       }}>
@@ -137,10 +165,28 @@ export function ToolBar({ showFilterBar: _showFilterBar, onToggleFilter: _onTogg
           width: 6,
           height: 6,
           borderRadius: '50%',
-          background: signalR.connected ? 'var(--accent-success)' : sse.connected ? 'var(--accent-warning)' : 'var(--text-dim)',
+          background: connected ? 'var(--accent-success)' : 'var(--text-dim)',
         }} />
-        {signalR.connected ? 'SignalR' : sse.connected ? 'SSE' : 'Offline'}
+        {transport === 'signalr' ? 'SignalR' : transport === 'sse' ? 'SSE' : 'Offline'}
       </div>
+
+      {/* Error notification */}
+      {error && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'var(--toolbar-height)',
+          right: 8,
+          background: 'var(--accent-error)',
+          color: '#fff',
+          padding: '4px 8px',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 11,
+          zIndex: 100,
+          animation: 'fadeIn 0.15s ease',
+        }}>
+          {error}
+        </div>
+      )}
     </div>
   )
 }

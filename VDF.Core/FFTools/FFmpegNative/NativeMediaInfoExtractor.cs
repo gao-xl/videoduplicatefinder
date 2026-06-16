@@ -28,9 +28,12 @@ namespace VDF.Core.FFTools.FFmpegNative {
 	static unsafe class NativeMediaInfoExtractor {
 
 		/// <summary>
-		/// Stored as a class field to prevent the GC from collecting the delegate
+		/// Stored as a thread-local field to prevent the GC from collecting the delegate
 		/// while FFmpeg holds a native function pointer to it during blocking I/O.
+		/// Using [ThreadStatic] ensures each thread has its own delegate instance,
+		/// preventing race conditions when multiple threads call Extract() concurrently.
 		/// </summary>
+		[ThreadStatic]
 		static AVIOInterruptCB_callback? _interruptCbDelegate;
 
 		/// <summary>

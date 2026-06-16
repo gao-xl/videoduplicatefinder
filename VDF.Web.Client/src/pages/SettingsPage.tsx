@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { getSettings, updateSettings, saveSettings, cleanDatabase, clearDatabase, type AppSettings } from '../api/settings'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
@@ -17,6 +17,39 @@ const TABS: { id: TabId; labelKey: string }[] = [
   { id: 'appearance', labelKey: 'Appearance' },
   { id: 'database', labelKey: 'Database' },
 ]
+
+// Debounce hook for settings updates
+function useDebouncedSettings(updateFn: (data: Partial<AppSettings>) => void) {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingRef = useRef<Partial<AppSettings> | null>(null)
+
+  const debouncedUpdate = useCallback((settings: Partial<AppSettings>) => {
+    pendingRef.current = { ...pendingRef.current, ...settings }
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      if (pendingRef.current) {
+        updateFn(pendingRef.current)
+        pendingRef.current = null
+      }
+      timeoutRef.current = null
+    }, 500) // 500ms debounce
+  }, [updateFn])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
+
+  return debouncedUpdate
+}
 
 export function SettingsPage() {
   const { t, lang, setLang } = useI18n()
@@ -41,6 +74,8 @@ export function SettingsPage() {
   const updateMutation = useMutation({
     mutationFn: (s: Partial<AppSettings>) => updateSettings(s),
   })
+
+  const debouncedUpdate = useDebouncedSettings(updateMutation.mutate)
 
   const saveMutation = useMutation({
     mutationFn: saveSettings,
@@ -70,8 +105,8 @@ export function SettingsPage() {
     if (!localSettings) return
     const updated = { ...localSettings, [key]: value }
     setLocalSettings(updated)
-    updateMutation.mutate(updated)
-  }, [localSettings, updateMutation])
+    debouncedUpdate({ [key]: value })
+  }, [localSettings, debouncedUpdate])
 
   const handleLanguageChange = useCallback((languageCode: string) => {
     setLang(languageCode as any)
@@ -560,6 +595,9 @@ function ToggleField({ label, value, onChange, description }: FieldProps & { val
         {description && <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{description}</div>}
       </div>
       <button
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         onClick={() => onChange(!value)}
         style={{
           width: 36,

@@ -49,3 +49,7 @@ export async function getScanState(): Promise<ScanStateResponse> {
 export async function resetScan(): Promise<{ status: string }> {
   return apiRequest<{ status: string }>('/scan/reset', { method: 'POST' })
 }
+
+export async function clearDatabase(): Promise<{ status: string }> {
+  return apiRequest<{ status: string }>('/scan/clear-database', { method: 'POST' })
+}
