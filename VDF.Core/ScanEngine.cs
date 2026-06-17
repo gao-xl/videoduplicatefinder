@@ -52,6 +52,7 @@ namespace VDF.Core {
 		CancellationTokenSource cancelationTokenSource = new();
 		PathMatcher? _includeMatcher;
 		readonly List<float> positionList = new();
+		FileEnumerator? _fileEnumerator;
 
 		bool isScanning;
 		int scanProgressMaxValue;
@@ -364,104 +365,10 @@ namespace VDF.Core {
 			return false;
 		}
 
-		Task BuildFileList(CancellationToken cancellationToken) => Task.Run(() => {
-
-			DatabaseUtils.LoadDatabase();
-			if (DatabaseUtils.DbVersion < 2)
-				Settings.UsePHashing = false;
-
-			int oldFileCount = DatabaseUtils.Database.Count;
-
-			foreach (string path in Settings.IncludeList) {
-				if (cancellationToken.IsCancellationRequested)
-					return;
-				if (!Directory.Exists(path)) {
-					// A disconnected network drive or removed folder would otherwise be
-					// skipped without a trace, making the scan look broken (0 files found).
-					Logger.Instance.Info($"WARNING: Search directory not found or inaccessible, skipping: '{path}'. If this is a network drive, make sure it is connected (or use the \\\\server\\share UNC path instead of a drive letter).");
-					continue;
-				}
-
-				bool isNetworkPath = IsNetworkPath(path);
-				int networkTimeoutMs = isNetworkPath ? Settings.NetworkPathTimeoutSeconds * 1000 : 0;
-
-				List<FileInfo> files;
-				if (isNetworkPath && networkTimeoutMs > 0) {
-					// Enumerate with a timeout for network paths so a stalled SMB/NFS
-					// share doesn't hang the entire scan indefinitely.
-					var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-					cts.CancelAfter(networkTimeoutMs);
-					try {
-						files = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
-							Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cts.Token);
-					}
-					catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
-						// Timed out (not user-cancelled)
-						Logger.Instance.Info($"WARNING: Network path enumeration timed out after {Settings.NetworkPathTimeoutSeconds}s, skipping: '{path}'. Increase NetworkPathTimeoutSeconds in settings if the share is slow.");
-						continue;
-					}
-				}
-				else {
-					files = FileUtils.GetFilesRecursive(path, Settings.IgnoreReadOnlyFolders, Settings.IgnoreReparsePoints,
-						Settings.IncludeSubDirectories, Settings.IncludeImages, Settings.BlackList.ToList(), cancellationToken);
-				}
-
-				foreach (FileInfo file in files) {
-					if (cancellationToken.IsCancellationRequested)
-						return;
-					FileEntry? fEntry = null;
-					try {
-						if (IsNetworkPath(file.FullName) && Settings.NetworkRetryCount > 0) {
-							// Retry FileEntry creation on network paths with exponential backoff
-							for (int attempt = 0; attempt <= Settings.NetworkRetryCount; attempt++) {
-								try {
-									fEntry = new(file);
-									break;
-								}
-								catch (UnauthorizedAccessException ex) when (attempt < Settings.NetworkRetryCount) {
-									int delayMs = (int)Math.Pow(2, attempt) * 1000;
-									Logger.Instance.Info($"Network access error creating entry for '{file}' (attempt {attempt + 1}/{Settings.NetworkRetryCount + 1}), retrying in {delayMs}ms: {ex.Message}");
-									Thread.Sleep(delayMs);
-								}
-								catch (IOException ex) when (attempt < Settings.NetworkRetryCount) {
-									int delayMs = (int)Math.Pow(2, attempt) * 1000;
-									Logger.Instance.Info($"Network I/O error creating entry for '{file}' (attempt {attempt + 1}/{Settings.NetworkRetryCount + 1}), retrying in {delayMs}ms: {ex.Message}");
-									Thread.Sleep(delayMs);
-								}
-							}
-						}
-						else {
-							fEntry = new(file);
-						}
-					}
-					catch (UnauthorizedAccessException ex) {
-						Logger.Instance.Info($"Skipped file '{file}' because of access denied: {ex.Message}");
-						continue;
-					}
-					catch (IOException ex) when (IsNetworkPath(file.FullName)) {
-						Logger.Instance.Info($"Skipped file '{file}' because of network I/O error after retries: {ex.Message}");
-						continue;
-					}
-					catch (Exception e) {
-						//https://github.com/0x90d/videoduplicatefinder/issues/237
-						Logger.Instance.Info($"Skipped file '{file}' because of {e}");
-						continue;
-					}
-					if (fEntry == null) continue;
-					if (!DatabaseUtils.Database.TryGetValue(fEntry, out var dbEntry))
-						DatabaseUtils.Database.Add(fEntry);
-					else if (fEntry.DateCreated != dbEntry.DateCreated ||
-							fEntry.DateModified != dbEntry.DateModified ||
-							fEntry.FileSize != dbEntry.FileSize) {
-						// -> Modified or different file
-						DatabaseUtils.Database.Remove(dbEntry);
-						DatabaseUtils.Database.Add(fEntry);
-					}
-				}
-			}
-
-			Logger.Instance.Info($"Files in database: {DatabaseUtils.Database.Count:N0} ({DatabaseUtils.Database.Count - oldFileCount:N0} files added)");
-		});
+		async Task BuildFileList(CancellationToken cancellationToken) {
+			_fileEnumerator ??= new FileEnumerator(Settings);
+			await _fileEnumerator.BuildFileList(cancellationToken);
+		}
 
 		// Check if entry should be excluded from the scan for any reason
 		// Returns true if the entry is invalid (should be excluded)

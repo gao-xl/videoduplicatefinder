@@ -249,7 +249,10 @@ namespace VDF.Web.Services {
 		}
 
 		public void SetAuthCookie(HttpContext ctx, string token, bool persistent = true) {
-			var isHttps = ctx.Request.IsHttps;
+			// Check for HTTPS: either direct or via reverse proxy (X-Forwarded-Proto)
+			var isHttps = ctx.Request.IsHttps
+				|| string.Equals(ctx.Request.Headers["X-Forwarded-Proto"].ToString(), "https", StringComparison.OrdinalIgnoreCase);
+
 			if (!isHttps)
 				_logger.LogWarning("Auth cookie is being set over an insecure (HTTP) connection. " +
 					"Enable HTTPS to ensure cookies are transmitted securely.");

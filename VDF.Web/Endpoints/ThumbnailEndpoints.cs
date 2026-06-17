@@ -61,6 +61,19 @@ static class ThumbnailEndpoints {
 			if (string.IsNullOrEmpty(path)) { ctx.Response.StatusCode = 400; return; }
 
 			path = Path.GetFullPath(path);
+
+			// Security: validate path is within configured scan directories
+			var allowedRoots = scan.Settings.IncludeList
+				.Where(d => !string.IsNullOrEmpty(d))
+				.Select(d => Path.GetFullPath(d))
+				.ToList();
+			if (allowedRoots.Count > 0) {
+				bool isAllowed = allowedRoots.Any(root =>
+					path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+					path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+				if (!isAllowed) { ctx.Response.StatusCode = 403; return; }
+			}
+
 			var item = scan.Duplicates.FirstOrDefault(d => d.Path == path);
 			if (item == null) { ctx.Response.StatusCode = 404; return; }
 
@@ -90,6 +103,19 @@ static class ThumbnailEndpoints {
 			if (string.IsNullOrEmpty(path)) { ctx.Response.StatusCode = 400; return; }
 
 			path = Path.GetFullPath(path);
+
+			// Security: validate path is within configured scan directories
+			var allowedRoots = scan.Settings.IncludeList
+				.Where(d => !string.IsNullOrEmpty(d))
+				.Select(d => Path.GetFullPath(d))
+				.ToList();
+			if (allowedRoots.Count > 0) {
+				bool isAllowed = allowedRoots.Any(root =>
+					path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+					path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+				if (!isAllowed) { ctx.Response.StatusCode = 403; return; }
+			}
+
 			var item = scan.Duplicates.FirstOrDefault(d => d.Path == path);
 			if (item == null) { ctx.Response.StatusCode = 404; return; }
 
