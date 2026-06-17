@@ -69,7 +69,21 @@ namespace VDF.Core {
 		public int ThumbnailCount = 1;
 		/// <summary>Maximum width in pixels for display thumbnails (0 = original resolution).</summary>
 		public int ThumbnailMaxWidth = 100;
+		/// <summary>
+		/// Maximum degree of parallelism for scanning operations.
+		/// Use 0 or negative values for automatic (based on CPU count).
+		/// </summary>
 		public int MaxDegreeOfParallelism = 1;
+
+		/// <summary>
+		/// Gets the effective parallelism for scanning operations.
+		/// Returns the configured value or falls back to CPU count.
+		/// </summary>
+		public int GetEffectiveParallelism() {
+			if (MaxDegreeOfParallelism <= 0)
+				return Math.Max(1, Environment.ProcessorCount);
+			return MaxDegreeOfParallelism;
+		}
 
 		public string CustomFFArguments = string.Empty;
 		public string CustomDatabaseFolder = string.Empty;
@@ -164,5 +178,84 @@ namespace VDF.Core {
 			// enabled bound so a seconds-only setup behaves like a flat tolerance.
 			return Math.Max(0d, Math.Max(DurationDifferenceMinSeconds, DurationDifferenceMaxSeconds));
 		}
+
+		/// <summary>
+		/// Applies a preset configuration to the current settings.
+		/// </summary>
+		public void ApplyPreset(ScanPreset preset) {
+			switch (preset) {
+			case ScanPreset.Fast:
+				Threshhold = 10;
+				Percent = 90f;
+				PercentDurationDifference = 30d;
+				MaxDegreeOfParallelism = 0; // Auto based on CPU count
+				ThumbnailCount = 1;
+				UsePHashing = false;
+				IncludeImages = false;
+				EnablePartialClipDetection = false;
+				CompareHorizontallyFlipped = false;
+				MaxSamplingDurationSeconds = 30;
+				break;
+
+			case ScanPreset.Balanced:
+				Threshhold = 5;
+				Percent = 96f;
+				PercentDurationDifference = 20d;
+				MaxDegreeOfParallelism = 0; // Auto based on CPU count
+				ThumbnailCount = 1;
+				UsePHashing = false;
+				IncludeImages = true;
+				EnablePartialClipDetection = false;
+				CompareHorizontallyFlipped = false;
+				MaxSamplingDurationSeconds = 0;
+				break;
+
+			case ScanPreset.Precise:
+				Threshhold = 2;
+				Percent = 99f;
+				PercentDurationDifference = 10d;
+				MaxDegreeOfParallelism = 1;
+				ThumbnailCount = 3;
+				UsePHashing = true;
+				IncludeImages = true;
+				EnablePartialClipDetection = true;
+				PartialClipRequireVisualMatch = true;
+				CompareHorizontallyFlipped = true;
+				MaxSamplingDurationSeconds = 0;
+				break;
+
+			case ScanPreset.ImageOnly:
+				Threshhold = 5;
+				Percent = 96f;
+				PercentDurationDifference = 0;
+				MaxDegreeOfParallelism = 0; // Auto based on CPU count
+				ThumbnailCount = 1;
+				IncludeImages = true;
+				EnablePartialClipDetection = false;
+				CompareHorizontallyFlipped = false;
+				break;
+
+			case ScanPreset.AudioFingerprint:
+				Threshhold = 5;
+				Percent = 96f;
+				PercentDurationDifference = 20d;
+				MaxDegreeOfParallelism = 1;
+				ThumbnailCount = 1;
+				EnablePartialClipDetection = true;
+				PartialClipRequireVisualMatch = true;
+				PartialClipMinRatio = 0.10;
+				PartialClipSimilarityThreshold = 0.80;
+				PartialClipVisualThreshold = 0.85;
+				break;
+			}
+		}
+	}
+
+	public enum ScanPreset {
+		Fast,
+		Balanced,
+		Precise,
+		ImageOnly,
+		AudioFingerprint
 	}
 }

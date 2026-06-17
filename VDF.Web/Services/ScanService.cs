@@ -42,6 +42,7 @@ namespace VDF.Web.Services {
 		public string CurrentStage { get; init; } = string.Empty;
 		public int StageCurrent { get; init; }
 		public int StageMax { get; init; }
+		public string? CurrentThumbnailPath { get; init; }
 	}
 
 	/// <summary>
@@ -86,6 +87,10 @@ namespace VDF.Web.Services {
 				Notify();
 			};
 			_engine.Progress += (_, e) => {
+				string? thumbnailPath = null;
+				if (!string.IsNullOrEmpty(e.CurrentFile) && File.Exists(e.CurrentFile)) {
+					thumbnailPath = e.CurrentFile;
+				}
 				LastProgress = new ScanProgressArgs {
 					CurrentFile = e.CurrentFile,
 					Current = e.CurrentPosition,
@@ -95,6 +100,7 @@ namespace VDF.Web.Services {
 					CurrentStage = e.CurrentStage ?? string.Empty,
 					StageCurrent = e.StageCurrent,
 					StageMax = e.StageMax,
+					CurrentThumbnailPath = thumbnailPath,
 				};
 				Notify();
 			};
@@ -471,6 +477,7 @@ namespace VDF.Web.Services {
 						StageCurrent = LastProgress.StageCurrent,
 						StageMax = LastProgress.StageMax,
 						ErrorMessage = ErrorMessage,
+						CurrentThumbnailPath = LastProgress.CurrentThumbnailPath,
 					};
 					_ = _hubContext.Clients.All.SendAsync("ProgressUpdate", payload);
 				}

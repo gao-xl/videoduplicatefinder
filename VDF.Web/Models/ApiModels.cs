@@ -20,6 +20,7 @@ public sealed class ScanProgressResponse {
 	public int StageCurrent { get; set; }
 	public int StageMax { get; set; }
 	public string? ErrorMessage { get; set; }
+	public string? CurrentThumbnailPath { get; set; }
 }
 
 public sealed class ScanStateResponse {
@@ -161,4 +162,10 @@ public sealed class HealthResponse {
 	public bool Ffmpeg { get; set; }
 	public bool Database { get; set; }
 	public string Timestamp { get; set; } = DateTime.UtcNow.ToString("o");
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+
+public sealed class PresetRequest {
+	public string Preset { get; set; } = string.Empty;
 }

@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeProvider'
 import { ScanStateProvider } from './contexts/ScanStateContext'
 import { I18nProvider } from './i18n/I18nProvider'
 import type { LanguageCode } from './i18n/i18n'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { MainLayout } from './components/Layout/MainLayout'
 import { LoginPage } from './pages/LoginPage'
 import { Spinner } from './components/shared/Spinner'
@@ -130,35 +131,37 @@ function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ScanStateProvider>
-          <I18nProvider initialLang={savedLang || 'zh-Hans'}>
-            <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route element={
-                <AuthGuard>
-                  {showGuide ? (
-                    <MainLayout>
-                      <WelcomeGuide onComplete={handleGuideComplete} />
-                    </MainLayout>
-                  ) : (
-                    <MainLayout />
-                  )}
-                </AuthGuard>
-              }>
-                <Route path="/" element={<LazyLoader><ScanPage /></LazyLoader>} />
-                <Route path="/results" element={<LazyLoader><ResultsPage /></LazyLoader>} />
-                <Route path="/settings" element={<LazyLoader><SettingsPage /></LazyLoader>} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
-          </I18nProvider>
-        </ScanStateProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ScanStateProvider>
+            <I18nProvider initialLang={savedLang || 'zh-Hans'}>
+              <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route element={
+                  <AuthGuard>
+                    {showGuide ? (
+                      <MainLayout>
+                        <WelcomeGuide onComplete={handleGuideComplete} />
+                      </MainLayout>
+                    ) : (
+                      <MainLayout />
+                    )}
+                  </AuthGuard>
+                }>
+                  <Route path="/" element={<LazyLoader><ScanPage /></LazyLoader>} />
+                  <Route path="/results" element={<LazyLoader><ResultsPage /></LazyLoader>} />
+                  <Route path="/settings" element={<LazyLoader><SettingsPage /></LazyLoader>} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+            </I18nProvider>
+          </ScanStateProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

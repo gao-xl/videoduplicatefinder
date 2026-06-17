@@ -9,22 +9,7 @@ import { Badge } from '../components/shared/Badge'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { Spinner } from '../components/shared/Spinner'
 import { CompareModal } from '../components/CompareModal'
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return '—'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = Math.floor(seconds % 60)
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+import { formatDuration, formatSize } from '../utils/format'
 
 function formatBitrate(kbps: number): string {
   if (kbps >= 1000) return `${(kbps / 1000).toFixed(1)} Mbps`
@@ -888,7 +873,9 @@ interface DuplicateGroupCardProps {
   onContextMenu: (e: React.MouseEvent, item: DuplicateItemDto) => void
 }
 
-function DuplicateGroupCard({
+import React from 'react'
+
+const DuplicateGroupCard = React.memo(function DuplicateGroupCard({
   group, index, collapsed, selectedPaths,
   onToggleCollapse, onToggleGroupSelect, onToggleSelect,
   onKeepBest, onCompare, onContextMenu,
@@ -1012,7 +999,7 @@ function DuplicateGroupCard({
       )}
     </div>
   )
-}
+})
 
 const miniBtnStyle: React.CSSProperties = {
   padding: '0.25rem 0.55rem',
@@ -1035,7 +1022,7 @@ interface DuplicateItemCardProps {
   groupItems: DuplicateItemDto[]
 }
 
-function DuplicateItemCard({ item, selected, onToggleSelect, onContextMenu, groupItems }: DuplicateItemCardProps) {
+const DuplicateItemCard = React.memo(function DuplicateItemCard({ item, selected, onToggleSelect, onContextMenu, groupItems }: DuplicateItemCardProps) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
   const thumbSrc = thumbnailUrl(item.path)
@@ -1226,7 +1213,7 @@ function DuplicateItemCard({ item, selected, onToggleSelect, onContextMenu, grou
       </div>
     </div>
   )
-}
+})
 
 function MetaTag({ children, color }: { children: React.ReactNode; color: string }) {
   return (

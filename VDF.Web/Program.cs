@@ -221,6 +221,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options => {
 
 var app = builder.Build();
 
+// Global exception handling middleware (must be first in pipeline)
+app.UseMiddleware<ExceptionMiddleware>();
+
 if (string.IsNullOrEmpty(corsOrigins)) {
 	app.Logger.LogWarning("CORS policy is restrictive by default — only same-origin requests are permitted. " +
 		"Set 'corsOrigins' in config.json or VDF_CORS_ORIGINS environment variable to allow cross-origin requests.");

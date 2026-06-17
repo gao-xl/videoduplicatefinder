@@ -164,6 +164,22 @@ static class SettingsEndpoints {
 			});
 		});
 
+		// GET /api/settings/presets — list available presets
+		group.MapGet("/presets", () => {
+			var presets = Enum.GetValues<ScanPreset>()
+				.Select(p => new { name = p.ToString(), value = (int)p })
+				.ToList();
+			return Results.Ok(presets);
+		});
+
+		// POST /api/settings/presets/apply — apply a preset
+		group.MapPost("/presets/apply", (ScanService scan, PresetRequest req) => {
+			if (!Enum.TryParse<ScanPreset>(req.Preset, true, out var preset))
+				return Results.BadRequest(new { error = "invalid_preset" });
+			scan.Settings.ApplyPreset(preset);
+			return Results.Ok(new { applied = req.Preset });
+		});
+
 		return app;
 	}
 }

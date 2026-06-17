@@ -13,6 +13,8 @@
 //     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
 // */
 
+using System.Diagnostics;
+using System.Reflection;
 using VDF.Core;
 using VDF.Core.Utils;
 
@@ -23,6 +25,12 @@ public sealed class HealthReport {
 	public bool Ffmpeg { get; init; }
 	public bool Database { get; init; }
 	public string Timestamp { get; init; } = DateTime.UtcNow.ToString("o");
+	public string Version { get; init; } = string.Empty;
+	public string RuntimeVersion { get; init; } = string.Empty;
+	public long MemoryUsedMb { get; init; }
+	public int ThreadCount { get; init; }
+	public string FfmpegVersion { get; init; } = string.Empty;
+	public int DatabaseEntries { get; init; }
 }
 
 public sealed class HealthCheckService {
@@ -36,11 +44,57 @@ public sealed class HealthCheckService {
 			_ => "Degraded"
 		};
 
+		// Get version info
+		string version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
+		string runtimeVersion = Environment.Version.ToString();
+
+		// Get memory usage
+		long memoryUsedMb = GC.GetTotalMemory(false) / (1024 * 1024);
+
+		// Get thread count
+		int threadCount = Process.GetCurrentProcess().Threads.Count;
+
+		// Get FFmpeg version
+		string ffmpegVersion = GetFfmpegVersion();
+
+		// Get database entry count
+		int databaseEntries = DatabaseUtils.Database.Count;
+
 		return Task.FromResult(new HealthReport {
 			Status = status,
 			Ffmpeg = ffmpegOk,
 			Database = databaseOk,
+			Version = version,
+			RuntimeVersion = runtimeVersion,
+			MemoryUsedMb = memoryUsedMb,
+			ThreadCount = threadCount,
+			FfmpegVersion = ffmpegVersion,
+			DatabaseEntries = databaseEntries,
 		});
+	}
+
+	static string GetFfmpegVersion() {
+		try {
+			if (!ScanEngine.FFmpegExists) return "not found";
+			var psi = new ProcessStartInfo {
+				FileName = VDF.Core.FFTools.FfmpegEngine.FFmpegPath,
+				Arguments = "-version",
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+				CreateNoWindow = true,
+			};
+			using var process = Process.Start(psi);
+			if (process == null) return "unknown";
+			process.WaitForExit(2000);
+			string output = process.StandardOutput.ReadToEnd();
+			// Extract version from first line: "ffmpeg version X.Y.Z ..."
+			var match = System.Text.RegularExpressions.Regex.Match(output, @"ffmpeg version (\S+)");
+			return match.Success ? match.Groups[1].Value : "unknown";
+		}
+		catch {
+			return "error";
+		}
 	}
 
 	static bool CheckDatabaseAccessible() {

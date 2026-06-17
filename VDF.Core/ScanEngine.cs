@@ -628,7 +628,7 @@ namespace VDF.Core {
 		async Task GatherInfos() {
 			try {
 				InitProgress(DatabaseUtils.Database.Count);
-				await Parallel.ForEachAsync(DatabaseUtils.Database, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, token) => {
+				await Parallel.ForEachAsync(DatabaseUtils.Database, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, (entry, token) => {
 					pauseTokenSource.WaitWhilePaused(token);
 
 					try {
@@ -1401,7 +1401,7 @@ namespace VDF.Core {
 
 				try {
 					if (imageEntries.Count >= largeBucketThreshold) {
-						Parallel.For(0, imageEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, compareAction);
+						Parallel.For(0, imageEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, compareAction);
 					}
 					else {
 						for (int i = 0; i < imageEntries.Count; i++)
@@ -1490,7 +1490,7 @@ namespace VDF.Core {
 
 				try {
 					if (videoEntries.Count >= largeBucketThreshold) {
-						Parallel.For(0, videoEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, compareAction);
+						Parallel.For(0, videoEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, compareAction);
 					}
 					else {
 						for (int i = 0; i < videoEntries.Count; i++)
@@ -1699,7 +1699,7 @@ namespace VDF.Core {
 
 				try {
 					if (videoEntries.Count >= largeBucketThreshold) {
-						Parallel.For(0, videoEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, compareAction);
+						Parallel.For(0, videoEntries.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, compareAction);
 					}
 					else {
 						for (int i = 0; i < videoEntries.Count; i++)
@@ -1725,7 +1725,7 @@ namespace VDF.Core {
 					var smallBuckets = videoBuckets.Where(kvp => kvp.Value.Count < largeBucketThreshold).ToList();
 					var largeBuckets = videoBuckets.Where(kvp => kvp.Value.Count >= largeBucketThreshold).ToList();
 
-					Parallel.ForEach(smallBuckets, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, bucket => {
+					Parallel.ForEach(smallBuckets, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, bucket => {
 						foreach (var entry in bucket.Value) {
 							int entryIndex = entry.compareIndex;
 							double durationSeconds = entry.mediaInfo!.Duration.TotalSeconds;
@@ -1739,7 +1739,7 @@ namespace VDF.Core {
 					});
 
 					foreach (var bucket in largeBuckets) {
-						Parallel.For(0, bucket.Value.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, i => {
+						Parallel.For(0, bucket.Value.Count, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, i => {
 							var entry = bucket.Value[i];
 							int entryIndex = entry.compareIndex;
 							double durationSeconds = entry.mediaInfo!.Duration.TotalSeconds;
@@ -2410,7 +2410,7 @@ namespace VDF.Core {
 			Logger.Instance.Info($"Explicit thumbnail retry: starting for {dupList.Count} item(s).");
 			int loaded = 0, placeholders = 0, skippedMissing = 0;
 			try {
-				await Parallel.ForEachAsync(dupList, new ParallelOptions { MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, cancellationToken) => {
+				await Parallel.ForEachAsync(dupList, new ParallelOptions { MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, (entry, cancellationToken) => {
 					List<byte[]>? list = null;
 					bool needsThumbnails = !Settings.IncludeNonExistingFiles || File.Exists(entry.Path);
 					List<TimeSpan>? timeStamps = null;
@@ -2483,7 +2483,7 @@ namespace VDF.Core {
 			var totalSw = Stopwatch.StartNew();
 			var sw = Stopwatch.StartNew();
 			try {
-				await Parallel.ForEachAsync(dupList, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.MaxDegreeOfParallelism }, (entry, cancellationToken) => {
+				await Parallel.ForEachAsync(dupList, new ParallelOptions { CancellationToken = cancelationTokenSource.Token, MaxDegreeOfParallelism = Settings.GetEffectiveParallelism() }, (entry, cancellationToken) => {
 					List<byte[]>? list = null;
 					bool needsThumbnails = !Settings.IncludeNonExistingFiles || File.Exists(entry.Path);
 					List<TimeSpan>? timeStamps = null;

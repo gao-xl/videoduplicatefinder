@@ -12,6 +12,7 @@ export interface ScanProgressResponse {
   stageCurrent: number
   stageMax: number
   errorMessage?: string
+  currentThumbnailPath?: string
 }
 
 export interface ScanStateResponse {

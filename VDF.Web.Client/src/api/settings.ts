@@ -100,3 +100,19 @@ export async function updateWebSettings(settings: Partial<WebSettings>): Promise
     body: settings,
   })
 }
+
+export interface Preset {
+  name: string
+  value: number
+}
+
+export async function getPresets(): Promise<Preset[]> {
+  return apiRequest<Preset[]>('/settings/presets', { method: 'GET' })
+}
+
+export async function applyPreset(preset: string): Promise<{ applied: string }> {
+  return apiRequest<{ applied: string }>('/settings/presets/apply', {
+    method: 'POST',
+    body: { preset },
+  })
+}

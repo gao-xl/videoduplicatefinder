@@ -8,15 +8,8 @@ import { useSSE } from '../hooks/useSSE'
 import { ProgressBar } from '../components/shared/ProgressBar'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { PathBrowser } from '../components/shared/PathBrowser'
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s`
-  const m = Math.floor(seconds / 60)
-  const s = Math.round(seconds % 60)
-  if (m < 60) return `${m}m ${s}s`
-  const h = Math.floor(m / 60)
-  return `${h}h ${m % 60}m`
-}
+import { LivePreviewPanel } from '../components/LivePreviewPanel'
+import { formatDuration } from '../utils/format'
 
 export function ScanPage() {
   const navigate = useNavigate()
@@ -91,8 +84,10 @@ export function ScanPage() {
   const isAborted = scanState === 'Aborted'
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease' }}>
-      {/* Scan Progress */}
+    <div style={{ animation: 'fadeIn 0.2s ease', display: 'flex', gap: '1rem' }}>
+      {/* Main Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Scan Progress */}
       {(isScanning || isPaused) && scanProgress && (
         <div style={{
           background: 'var(--bg-surface)',
@@ -526,6 +521,12 @@ export function ScanPage() {
         onConfirm={() => { clearDatabase(); setShowClearDbConfirm(false) }}
         onCancel={() => setShowClearDbConfirm(false)}
       />
+      </div>
+
+      {/* Live Preview Sidebar */}
+      <div style={{ width: '320px', flexShrink: 0 }}>
+        <LivePreviewPanel progress={scanProgress} />
+      </div>
     </div>
   )
 }

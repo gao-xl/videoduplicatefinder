@@ -1,8 +1,8 @@
-- [ ] ScanProgressResponse 包含 CurrentThumbnailPath 字段
-- [ ] ScanService 正确设置当前缩略图路径
-- [ ] SignalR/SSE 推送包含缩略图路径
-- [ ] LivePreviewPanel 组件正确显示缩略图
-- [ ] LivePreviewPanel 处理加载状态
-- [ ] LivePreviewPanel 处理错误和空状态
-- [ ] ScanPage 侧边栏正确集成 LivePreviewPanel
-- [ ] 侧边栏样式正确（布局、响应式）
+- [x] ScanProgressResponse 包含 CurrentThumbnailPath 字段
+- [x] ScanService 正确设置当前缩略图路径
+- [x] SignalR/SSE 推送包含缩略图路径
+- [x] LivePreviewPanel 组件正确显示缩略图
+- [x] LivePreviewPanel 处理加载状态
+- [x] LivePreviewPanel 处理错误和空状态
+- [x] ScanPage 侧边栏正确集成 LivePreviewPanel
+- [x] 侧边栏样式正确（布局、响应式）

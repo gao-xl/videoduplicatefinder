@@ -29,7 +29,7 @@ public sealed class ThumbnailLruCache {
 		if (_cache.Count > _maxSize) {
 			lock (_evictLock) {
 				if (_cache.Count > _maxSize) {
-					int toEvict = _maxSize / 4;
+					int toEvict = Math.Max(1, _maxSize / 4);
 					var oldest = _cache
 						.OrderBy(kvp => kvp.Value.LastAccess)
 						.Take(toEvict)

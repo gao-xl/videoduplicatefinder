@@ -57,6 +57,7 @@ static class ScanEndpoints {
 				StageCurrent = p?.StageCurrent ?? 0,
 				StageMax = p?.StageMax ?? 0,
 				ErrorMessage = scan.ErrorMessage,
+				CurrentThumbnailPath = p?.CurrentThumbnailPath,
 			});
 		});
 

@@ -54,6 +54,7 @@ static class SseEndpoints {
 							StageCurrent = p.StageCurrent,
 							StageMax = p.StageMax,
 							ErrorMessage = scan.ErrorMessage,
+							CurrentThumbnailPath = p.CurrentThumbnailPath,
 						});
 						await SendEvent(ctx, "progress", progress, cts.Token);
 					}

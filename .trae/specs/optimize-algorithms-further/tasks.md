@@ -16,7 +16,7 @@
   - `programmatic` TR-0.2: `PHashLSHIndex.SelfTest` 运行成功并输出基准统计。
 - **Notes**: 仅作为后续任务的输入；不产生代码变更。
 
-## [ ] Task 1: 抽取共享比较流水线 `TryComparePair`
+## [x] Task 1: 抽取共享比较流水线 `TryComparePair`
 - **Priority**: P0
 - **Depends On**: Task 0
 - **Description**:

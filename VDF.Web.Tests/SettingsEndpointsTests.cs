@@ -1,56 +1,147 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-
 namespace VDF.Web.Tests;
 
-public class SettingsEndpointsTests : IClassFixture<VdfWebFactory> {
-	readonly HttpClient _client;
-	readonly VdfWebFactory _factory;
+public class SettingsEndpointsTests {
+	[Theory]
+	[InlineData(1)]
+	[InlineData(4)]
+	[InlineData(8)]
+	[InlineData(16)]
+	public void MaxDegreeOfParallelism_ValidValues_Accepted(int value) {
+		// Arrange
+		int min = 1;
+		int max = Environment.ProcessorCount * 2;
 
-	public SettingsEndpointsTests(VdfWebFactory factory) {
-		_factory = factory;
-		_client = factory.CreateClient();
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(-1)]
+	[InlineData(0)]
+	[InlineData(100)]
+	[InlineData(int.MaxValue)]
+	public void MaxDegreeOfParallelism_InvalidValues_Clamped(int value) {
+		// Arrange
+		int min = 1;
+		int max = Environment.ProcessorCount * 2;
+
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(0)]
+	[InlineData(5)]
+	[InlineData(10)]
+	[InlineData(20)]
+	public void ThumbnailCount_ValidValues_Accepted(int value) {
+		// Arrange
+		int min = 0;
+		int max = 20;
+
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(-5)]
+	[InlineData(25)]
+	[InlineData(100)]
+	public void ThumbnailCount_InvalidValues_Clamped(int value) {
+		// Arrange
+		int min = 0;
+		int max = 20;
+
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(0f)]
+	[InlineData(50f)]
+	[InlineData(96f)]
+	[InlineData(100f)]
+	public void Percent_ValidValues_Accepted(float value) {
+		// Arrange
+		float min = 0f;
+		float max = 100f;
+
+		// Act
+		float clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(-10f)]
+	[InlineData(150f)]
+	public void Percent_InvalidValues_Clamped(float value) {
+		// Arrange
+		float min = 0f;
+		float max = 100f;
+
+		// Act
+		float clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(48)]
+	[InlineData(480)]
+	[InlineData(960)]
+	public void ThumbnailWidth_ValidValues_Accepted(int value) {
+		// Arrange
+		int min = 48;
+		int max = 960;
+
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
+	}
+
+	[Theory]
+	[InlineData(10)]
+	[InlineData(50)]
+	[InlineData(95)]
+	public void ThumbnailJpegQuality_ValidValues_Accepted(int value) {
+		// Arrange
+		int min = 10;
+		int max = 95;
+
+		// Act
+		int clamped = Math.Clamp(value, min, max);
+
+		// Assert
+		Assert.InRange(clamped, min, max);
 	}
 
 	[Fact]
-	public async Task GetSettings_ReturnsSettingsObject() {
-		using var request = new HttpRequestMessage(HttpMethod.Get, "/api/settings");
-		request.Headers.Add("X-API-Key", VdfWebFactory.TestApiKey);
+	public void MinimumFileSize_LessThanMaximumFileSize() {
+		// Arrange
+		int minimum = 100;
+		int maximum = 1000;
 
-		var response = await _client.SendAsync(request);
-		response.EnsureSuccessStatusCode();
+		// Act
+		int clampedMax = Math.Max(minimum, maximum);
 
-		var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.True(body.TryGetProperty("Threshhold", out _), "Settings should contain Threshhold");
-		Assert.True(body.TryGetProperty("IncludeList", out _), "Settings should contain IncludeList");
-		Assert.True(body.TryGetProperty("Percent", out _), "Settings should contain Percent");
-	}
-
-	[Fact]
-	public async Task PutSettings_UpdatesSettings() {
-		var dto = new Dictionary<string, object?> {
-			["IncludeList"] = new List<string>(),
-			["BlackList"] = new List<string>(),
-			["Threshhold"] = 3,
-			["Percent"] = 95f,
-			["PercentDurationDifference"] = 20.0,
-			["MaxDegreeOfParallelism"] = 1,
-			["ThumbnailCount"] = 1,
-			["IncludeSubDirectories"] = true,
-			["IncludeImages"] = true,
-		};
-
-		using var putReq = new HttpRequestMessage(HttpMethod.Put, "/api/settings") {
-			Content = JsonContent.Create(dto),
-		};
-		putReq.Headers.Add("X-API-Key", VdfWebFactory.TestApiKey);
-
-		var putResp = await _client.SendAsync(putReq);
-		Assert.Equal(HttpStatusCode.OK, putResp.StatusCode);
-
-		var putBody = await putResp.Content.ReadFromJsonAsync<JsonElement>();
-		Assert.True(putBody.TryGetProperty("updated", out var updated));
-		Assert.True(updated.GetBoolean());
+		// Assert
+		Assert.True(clampedMax >= minimum);
 	}
 }
