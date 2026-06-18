@@ -28,48 +28,16 @@ using VDF.Web.Utils;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Load config.json for early configuration (CORS, TLS, base path, port) ──
-// This mirrors the logic in WebConfigService so it can be used before DI is built.
-static string GetEarlyConfigPath() {
-	var explicitPath = Environment.GetEnvironmentVariable("VDF_CONFIG_PATH");
-	if (!string.IsNullOrWhiteSpace(explicitPath)) return explicitPath;
-	return Path.Combine(AppContext.BaseDirectory, "config.json");
-}
+// Delegates to WebConfigService.LoadEarlyBootConfig so the parsing logic lives
+// in a single place (it was previously duplicated here and in WebConfigService).
+var earlyConfig = WebConfigService.LoadEarlyBootConfig();
 
-string? configPassword = null;
-List<string>? configCorsOrigins = null;
-string? configTlsCert = null;
-string? configTlsKey = null;
-string? configBasePath = null;
-int? configPort = null;
-
-var configPath = GetEarlyConfigPath();
-if (File.Exists(configPath)) {
-	try {
-		var json = File.ReadAllText(configPath);
-		using var doc = System.Text.Json.JsonDocument.Parse(json);
-		if (doc.RootElement.TryGetProperty("web", out var web)) {
-			if (web.TryGetProperty("password", out var pw) && pw.ValueKind == System.Text.Json.JsonValueKind.String)
-				configPassword = pw.GetString();
-			if (web.TryGetProperty("basePath", out var bp) && bp.ValueKind == System.Text.Json.JsonValueKind.String)
-				configBasePath = bp.GetString();
-			if (web.TryGetProperty("tlsCert", out var tc) && tc.ValueKind == System.Text.Json.JsonValueKind.String)
-				configTlsCert = tc.GetString();
-			if (web.TryGetProperty("tlsKey", out var tk) && tk.ValueKind == System.Text.Json.JsonValueKind.String)
-				configTlsKey = tk.GetString();
-			if (web.TryGetProperty("port", out var pt) && pt.ValueKind == System.Text.Json.JsonValueKind.Number)
-				configPort = pt.GetInt32();
-			if (web.TryGetProperty("corsOrigins", out var co) && co.ValueKind == System.Text.Json.JsonValueKind.Array) {
-				configCorsOrigins = [];
-				foreach (var item in co.EnumerateArray())
-					if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-						configCorsOrigins.Add(item.GetString()!);
-			}
-		}
-	}
-	catch (Exception ex) {
-		Console.WriteLine($"Warning: Failed to parse config.json at {configPath}: {ex.Message}");
-	}
-}
+string? configPassword = earlyConfig.Password;
+List<string>? configCorsOrigins = earlyConfig.CorsOrigins;
+string? configTlsCert = earlyConfig.TlsCert;
+string? configTlsKey = earlyConfig.TlsKey;
+string? configBasePath = earlyConfig.BasePath;
+int? configPort = earlyConfig.Port;
 
 // ── VDF_BASE_PATH: serve the app under a sub-path when behind a reverse proxy ──
 var basePath = configBasePath?.Trim('/') ?? Environment.GetEnvironmentVariable("VDF_BASE_PATH")?.Trim('/');
@@ -79,7 +47,7 @@ if (!string.IsNullOrEmpty(basePath)) {
 }
 
 // React SPA - static file serving only (no Blazor Server)
-builder.Services.AddAntiforgery();
+// (Antiforgery is not used — this is a JWT-authenticated SPA with SignalR/SSE)
 
 builder.Services.AddHttpContextAccessor();
 
@@ -256,10 +224,6 @@ TaskScheduler.UnobservedTaskException += (_, e) => {
 // ForwardedHeaders middleware — must be before other middleware
 app.UseForwardedHeaders();
 
-if (!app.Environment.IsDevelopment()) {
-	app.UseExceptionHandler("/Error");
-}
-
 // Swagger UI (development only)
 if (app.Environment.IsDevelopment()) {
 	app.UseSwagger();
@@ -322,98 +286,7 @@ app.Use(async (ctx, next) => {
 	await next();
 });
 
-// HQ thumbnail endpoint — extracts a fresh frame using configurable resolution and quality.
-// Used by the card-based results view for crisp thumbnails.
-var webSettings = app.Services.GetRequiredService<WebSettingsService>();
-app.MapGet("/thumbnail/hq", async (HttpContext ctx, ScanService scan) => {
-	string? path = ctx.Request.Query["path"];
-	if (string.IsNullOrEmpty(path)) { ctx.Response.StatusCode = 400; return; }
-
-	path = Path.GetFullPath(path);
-	var item = scan.Duplicates.FirstOrDefault(d => d.Path == path);
-	if (item == null) { ctx.Response.StatusCode = 404; return; }
-
-	// Honor the w/q the page requested (falling back to the current settings) so
-	// cached browser URLs stay consistent with the bytes they were rendered from.
-	int width = int.TryParse(ctx.Request.Query["w"], out int w) ? w : webSettings.ThumbnailWidth;
-	int quality = int.TryParse(ctx.Request.Query["q"], out int q) ? q : webSettings.ThumbnailJpegQuality;
-	width = Math.Clamp(width, 48, 960);
-	quality = Math.Clamp(quality, 10, 95);
-
-	var position = item.ThumbnailTimestamps.Count > 0
-		? item.ThumbnailTimestamps[0]
-		: TimeSpan.FromSeconds(item.Duration.TotalSeconds * 0.1);
-
-	string cacheKey = $"{path}|{position.TotalSeconds:F2}|{width}|{quality}";
-
-	var jpeg = scan.HqThumbCache.GetOrAdd(cacheKey,
-		() => ScanEngine.ExtractThumbnailJpeg(path, position, width, quality));
-	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-
-	ctx.Response.ContentType = "image/jpeg";
-	ctx.Response.Headers.CacheControl = "public, max-age=3600";
-	await ctx.Response.Body.WriteAsync(jpeg);
-});
-
-// Full-resolution thumbnail endpoint — extracts at original resolution for the comparison modal.
-app.MapGet("/thumbnail/full", async (HttpContext ctx, ScanService scan) => {
-	string? path = ctx.Request.Query["path"];
-	if (string.IsNullOrEmpty(path)) { ctx.Response.StatusCode = 400; return; }
-
-	path = Path.GetFullPath(path);
-	var item = scan.Duplicates.FirstOrDefault(d => d.Path == path);
-	if (item == null) { ctx.Response.StatusCode = 404; return; }
-
-	var position = item.ThumbnailTimestamps.Count > 0
-		? item.ThumbnailTimestamps[0]
-		: TimeSpan.FromSeconds(item.Duration.TotalSeconds * 0.1);
-
-	string cacheKey = $"{path}|{position.TotalSeconds:F2}|full";
-
-	var jpeg = scan.FullThumbCache.GetOrAdd(cacheKey,
-		() => ScanEngine.ExtractThumbnailJpeg(path, position, 0));
-	if (jpeg == null || jpeg.Length == 0) { ctx.Response.StatusCode = 204; return; }
-
-	ctx.Response.ContentType = "image/jpeg";
-	ctx.Response.Headers.CacheControl = "public, max-age=3600";
-	await ctx.Response.Body.WriteAsync(jpeg);
-});
-
-// CSV export of the current results — same column layout as the GUI export,
-// minus the GUI-only Checked column.
-app.MapGet("/export/csv", (ScanService scan) => {
-	static string Escape(string? s) {
-		s ??= string.Empty;
-		return s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r')
-			? "\"" + s.Replace("\"", "\"\"") + "\""
-			: s;
-	}
-	var inv = System.Globalization.CultureInfo.InvariantCulture;
-	var sb = new System.Text.StringBuilder();
-	sb.AppendLine("GroupId,Path,SizeBytes,Duration,Resolution,Fps,BitrateKbs,AudioFormat,AudioSampleRate,Similarity,DateCreated,IsImage");
-	// Keep group members on adjacent rows regardless of list order.
-	foreach (var group in scan.Duplicates.GroupBy(i => i.GroupId))
-		foreach (var item in group)
-			sb.AppendLine(string.Join(',',
-				item.GroupId.ToString(),
-				Escape(item.Path),
-				item.SizeLong.ToString(inv),
-				item.Duration.ToString(null, inv),
-				Escape(item.FrameSize),
-				item.Fps.ToString(inv),
-				item.BitRateKbs.ToString(inv),
-				Escape(item.AudioFormat),
-				item.AudioSampleRate.ToString(inv),
-				item.Similarity.ToString(inv),
-				item.DateCreated.ToString("yyyy-MM-dd HH:mm:ss", inv),
-				item.IsImage.ToString()));
-	// UTF-8 BOM so Excel detects the encoding.
-	var utf8 = System.Text.Encoding.UTF8;
-	byte[] bytes = [.. utf8.GetPreamble(), .. utf8.GetBytes(sb.ToString())];
-	return Microsoft.AspNetCore.Http.Results.File(bytes, "text/csv", "vdf-results.csv");
-});
-
-// ── New Minimal API endpoints ──
+// ── Minimal API endpoints ──
 
 app.MapScanApi();
 app.MapBrowseApi();

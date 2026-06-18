@@ -15,6 +15,7 @@
 //
 
 using System.Text.Json.Serialization;
+using VDF.Core;
 using VDF.GUI.ViewModels;
 
 namespace VDF.GUI.Data {
@@ -22,11 +23,14 @@ namespace VDF.GUI.Data {
 	/// Source-generated JSON metadata for the GUI's serialized types (settings, language
 	/// files, selection presets, cleanup reports). Replaces reflection-based
 	/// System.Text.Json as groundwork for publishing the GUI with Native AOT.
-	/// These types were always serialized with default options — no IncludeFields here,
-	/// so the wire format is unchanged; field-based types live in
-	/// <see cref="GuiJsonFieldsContext"/>.
+	/// IncludeFields is required so the nested <see cref="VDF.Core.Settings"/> object
+	/// (composed inside <see cref="SettingsFile.Core"/>) serializes its public fields.
+	/// Existing property-based types are unaffected — IncludeFields only adds public
+	/// fields, and they have none.
 	/// </summary>
+	[JsonSourceGenerationOptions(IncludeFields = true)]
 	[JsonSerializable(typeof(SettingsFile))]
+	[JsonSerializable(typeof(Settings))]
 	[JsonSerializable(typeof(Dictionary<string, string>))]
 	[JsonSerializable(typeof(CustomSelectionData))]
 	[JsonSerializable(typeof(CleanupDryRunReport))]
@@ -38,18 +42,17 @@ namespace VDF.GUI.Data {
 	/// (whose dictionary values are tuples, serialized through their Item1/Item2 fields).
 	/// </summary>
 	[JsonSourceGenerationOptions(IncludeFields = true)]
-	[JsonSerializable(typeof(ScanResultsEnvelope))]
 	[JsonSerializable(typeof(List<DuplicateItemVM>))]
 	[JsonSerializable(typeof(Dictionary<string, ValueTuple<long, int>>), TypeInfoPropertyName = "ThumbPackIndex")]
 	internal partial class GuiJsonFieldsContext : JsonSerializerContext { }
+
+	/// <summary>WriteIndented twin of <see cref="GuiJsonFieldsContext"/> (thumbnail pack index).</summary>
+	[JsonSourceGenerationOptions(IncludeFields = true, WriteIndented = true)]
+	[JsonSerializable(typeof(Dictionary<string, ValueTuple<long, int>>), TypeInfoPropertyName = "ThumbPackIndex")]
+	internal partial class GuiJsonFieldsPrettyContext : JsonSerializerContext { }
 
 	/// <summary>WriteIndented twin of <see cref="GuiJsonContext"/> (cleanup dry-run reports).</summary>
 	[JsonSourceGenerationOptions(WriteIndented = true)]
 	[JsonSerializable(typeof(CleanupDryRunReport))]
 	internal partial class GuiJsonPrettyContext : JsonSerializerContext { }
-
-	/// <summary>WriteIndented twin of <see cref="GuiJsonFieldsContext"/> (pretty scan-results exports).</summary>
-	[JsonSourceGenerationOptions(IncludeFields = true, WriteIndented = true)]
-	[JsonSerializable(typeof(ScanResultsEnvelope))]
-	internal partial class GuiJsonFieldsPrettyContext : JsonSerializerContext { }
 }

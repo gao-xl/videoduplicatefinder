@@ -17,10 +17,12 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using System.Xml.Linq;
 using ReactiveUI;
+using VDF.Core;
 using VDF.Core.Utils;
 using VDF.GUI.ViewModels;
 
@@ -34,7 +36,31 @@ namespace VDF.GUI.Data {
 		[JsonIgnore]
 		public static SettingsFile Instance => instance ??= new SettingsFile();
 
-		public SettingsFile() { }
+		/// <summary>
+		/// The canonical Core settings, serialized as a nested <c>"core"</c> object.
+		/// Adding a new field to <see cref="VDF.Core.Settings"/> requires ZERO changes
+		/// here — it is automatically serialized as part of this nested object.
+		/// Forwarding properties below delegate to this instance so existing call sites
+		/// (e.g. <c>SettingsFile.Instance.Percent</c>) continue to work.
+		/// </summary>
+		Settings _Core;
+		[JsonPropertyName("core")]
+		public VDF.Core.Settings Core {
+			get => _Core;
+			set => this.RaiseAndSetIfChanged(ref _Core, value);
+		}
+
+		public SettingsFile() {
+			// GUI-specific defaults that differ from Core's defaults.
+			_Core = new VDF.Core.Settings {
+				GeneratePreviewThumbnails = true,
+				Percent = 95f,
+				MaxDegreeOfParallelism = -1, // -1 = auto (<= 0 means auto in Core)
+				HardwareAccelerationMode = VDF.Core.FFTools.FFHardwareAccelerationMode.auto,
+				MaximumFileSize = 999999999,
+				LanguageCode = ResolveDefaultLanguageCode(),
+			};
+		}
 
 
 		public static void SetSettingsPath(string? path) {
@@ -140,215 +166,204 @@ namespace VDF.GUI.Data {
 			set => this.RaiseAndSetIfChanged(ref _LastSortOrder, value);
 		}
 
-		string _LanguageCode = ResolveDefaultLanguageCode();
-		[JsonPropertyName("LanguageCode")]
+		// ── Forwarding properties to Core ────────────────────────────────────
+		// These delegate to Core so existing call sites (SettingsFile.Instance.X)
+		// keep working. They are [JsonIgnore]d because Core is serialized as the
+		// nested "core" object — the single source of truth. Adding a new field
+		// to VDF.Core.Settings requires NO changes here.
+
+		[JsonIgnore]
 		public string LanguageCode {
-			get => _LanguageCode;
-			set => this.RaiseAndSetIfChanged(ref _LanguageCode, ResolveLanguageCode(value));
+			get => Core.LanguageCode;
+			set {
+				var resolved = ResolveLanguageCode(value);
+				if (Core.LanguageCode != resolved) {
+					Core.LanguageCode = resolved;
+					this.RaisePropertyChanged(nameof(LanguageCode));
+				}
+			}
 		}
-		bool _IgnoreReadOnlyFolders;
-		[JsonPropertyName("IgnoreReadOnlyFolders")]
+		[JsonIgnore]
 		public bool IgnoreReadOnlyFolders {
-			get => _IgnoreReadOnlyFolders;
-			set => this.RaiseAndSetIfChanged(ref _IgnoreReadOnlyFolders, value);
+			get => Core.IgnoreReadOnlyFolders;
+			set { if (Core.IgnoreReadOnlyFolders != value) { Core.IgnoreReadOnlyFolders = value; this.RaisePropertyChanged(nameof(IgnoreReadOnlyFolders)); } }
 		}
-		bool _ExcludeHardLinks;
-		[JsonPropertyName("ExcludeHardLinks")]
+		[JsonIgnore]
 		public bool ExcludeHardLinks {
-			get => _ExcludeHardLinks;
-			set => this.RaiseAndSetIfChanged(ref _ExcludeHardLinks, value);
+			get => Core.ExcludeHardLinks;
+			set { if (Core.ExcludeHardLinks != value) { Core.ExcludeHardLinks = value; this.RaisePropertyChanged(nameof(ExcludeHardLinks)); } }
 		}
-		bool _IgnoreReparsePoints;
-		[JsonPropertyName("IgnoreReparsePoints")]
+		[JsonIgnore]
 		public bool IgnoreReparsePoints {
-			get => _IgnoreReparsePoints;
-			set => this.RaiseAndSetIfChanged(ref _IgnoreReparsePoints, value);
+			get => Core.IgnoreReparsePoints;
+			set { if (Core.IgnoreReparsePoints != value) { Core.IgnoreReparsePoints = value; this.RaisePropertyChanged(nameof(IgnoreReparsePoints)); } }
 		}
-		bool _IgnoreBlackPixels;
-		[JsonPropertyName("IgnoreBlackPixels")]
+		[JsonIgnore]
 		public bool IgnoreBlackPixels {
-			get => _IgnoreBlackPixels;
-			set => this.RaiseAndSetIfChanged(ref _IgnoreBlackPixels, value);
+			get => Core.IgnoreBlackPixels;
+			set { if (Core.IgnoreBlackPixels != value) { Core.IgnoreBlackPixels = value; this.RaisePropertyChanged(nameof(IgnoreBlackPixels)); } }
 		}
-		bool _IgnoreWhitePixels;
-		[JsonPropertyName("IgnoreWhitePixels")]
+		[JsonIgnore]
 		public bool IgnoreWhitePixels {
-			get => _IgnoreWhitePixels;
-			set => this.RaiseAndSetIfChanged(ref _IgnoreWhitePixels, value);
+			get => Core.IgnoreWhitePixels;
+			set { if (Core.IgnoreWhitePixels != value) { Core.IgnoreWhitePixels = value; this.RaisePropertyChanged(nameof(IgnoreWhitePixels)); } }
 		}
-		int _MaxDegreeOfParallelism = -1;
-		[JsonPropertyName("MaxDegreeOfParallelism")]
+		[JsonIgnore]
 		public int MaxDegreeOfParallelism {
-			get => _MaxDegreeOfParallelism;
-			set => this.RaiseAndSetIfChanged(ref _MaxDegreeOfParallelism, value);
+			get => Core.MaxDegreeOfParallelism;
+			set { if (Core.MaxDegreeOfParallelism != value) { Core.MaxDegreeOfParallelism = value; this.RaisePropertyChanged(nameof(MaxDegreeOfParallelism)); } }
 		}
-		Core.FFTools.FFHardwareAccelerationMode _HardwareAccelerationMode = Core.FFTools.FFHardwareAccelerationMode.auto;
-		[JsonPropertyName("HardwareAccelerationMode")]
-		public Core.FFTools.FFHardwareAccelerationMode HardwareAccelerationMode {
-			get => _HardwareAccelerationMode;
-			set => this.RaiseAndSetIfChanged(ref _HardwareAccelerationMode, value);
+		[JsonIgnore]
+		public VDF.Core.FFTools.FFHardwareAccelerationMode HardwareAccelerationMode {
+			get => Core.HardwareAccelerationMode;
+			set { if (Core.HardwareAccelerationMode != value) { Core.HardwareAccelerationMode = value; this.RaisePropertyChanged(nameof(HardwareAccelerationMode)); } }
 		}
-		bool _CompareHorizontallyFlipped = false;
-		[JsonPropertyName("CompareHorizontallyFlipped")]
+		[JsonIgnore]
 		public bool CompareHorizontallyFlipped {
-			get => _CompareHorizontallyFlipped;
-			set => this.RaiseAndSetIfChanged(ref _CompareHorizontallyFlipped, value);
+			get => Core.CompareHorizontallyFlipped;
+			set { if (Core.CompareHorizontallyFlipped != value) { Core.CompareHorizontallyFlipped = value; this.RaisePropertyChanged(nameof(CompareHorizontallyFlipped)); } }
 		}
-		bool _IncludeSubDirectories = true;
-		[JsonPropertyName("IncludeSubDirectories")]
+		[JsonIgnore]
 		public bool IncludeSubDirectories {
-			get => _IncludeSubDirectories;
-			set => this.RaiseAndSetIfChanged(ref _IncludeSubDirectories, value);
+			get => Core.IncludeSubDirectories;
+			set { if (Core.IncludeSubDirectories != value) { Core.IncludeSubDirectories = value; this.RaisePropertyChanged(nameof(IncludeSubDirectories)); } }
 		}
-		bool _IncludeImages = true;
-		[JsonPropertyName("IncludeImages")]
+		[JsonIgnore]
 		public bool IncludeImages {
-			get => _IncludeImages;
-			set => this.RaiseAndSetIfChanged(ref _IncludeImages, value);
+			get => Core.IncludeImages;
+			set { if (Core.IncludeImages != value) { Core.IncludeImages = value; this.RaisePropertyChanged(nameof(IncludeImages)); } }
 		}
-		bool _GeneratePreviewThumbnails = true;
-		[JsonPropertyName("GeneratePreviewThumbnails")]
+		[JsonIgnore]
 		public bool GeneratePreviewThumbnails {
-			get => _GeneratePreviewThumbnails;
-			set => this.RaiseAndSetIfChanged(ref _GeneratePreviewThumbnails, value);
+			get => Core.GeneratePreviewThumbnails;
+			set { if (Core.GeneratePreviewThumbnails != value) { Core.GeneratePreviewThumbnails = value; this.RaisePropertyChanged(nameof(GeneratePreviewThumbnails)); } }
 		}
-		int _ThumbnailMaxWidth = 100;
-		[JsonPropertyName("ThumbnailMaxWidth")]
+		[JsonIgnore]
 		public int ThumbnailMaxWidth {
-			get => _ThumbnailMaxWidth;
-			set => this.RaiseAndSetIfChanged(ref _ThumbnailMaxWidth, Math.Clamp(value, 48, 960));
+			get => Core.ThumbnailMaxWidth;
+			set {
+				var clamped = Math.Clamp(value, 48, 960);
+				if (Core.ThumbnailMaxWidth != clamped) { Core.ThumbnailMaxWidth = clamped; this.RaisePropertyChanged(nameof(ThumbnailMaxWidth)); }
+			}
 		}
-		bool _ExtendedFFToolsLogging;
-		[JsonPropertyName("ExtendedFFToolsLogging")]
+		[JsonIgnore]
 		public bool ExtendedFFToolsLogging {
-			get => _ExtendedFFToolsLogging;
-			set => this.RaiseAndSetIfChanged(ref _ExtendedFFToolsLogging, value);
+			get => Core.ExtendedFFToolsLogging;
+			set { if (Core.ExtendedFFToolsLogging != value) { Core.ExtendedFFToolsLogging = value; this.RaisePropertyChanged(nameof(ExtendedFFToolsLogging)); } }
 		}
-		bool _LogExcludedFiles;
-		[JsonPropertyName("LogExcludedFiles")]
+		[JsonIgnore]
 		public bool LogExcludedFiles {
-			get => _LogExcludedFiles;
-			set => this.RaiseAndSetIfChanged(ref _LogExcludedFiles, value);
+			get => Core.LogExcludedFiles;
+			set { if (Core.LogExcludedFiles != value) { Core.LogExcludedFiles = value; this.RaisePropertyChanged(nameof(LogExcludedFiles)); } }
 		}
-		bool _AlwaysRetryFailedSampling = false;
-		[JsonPropertyName("AlwaysRetryFailedSampling")]
+		[JsonIgnore]
 		public bool AlwaysRetryFailedSampling {
-			get => _AlwaysRetryFailedSampling;
-			set => this.RaiseAndSetIfChanged(ref _AlwaysRetryFailedSampling, value);
+			get => Core.AlwaysRetryFailedSampling;
+			set { if (Core.AlwaysRetryFailedSampling != value) { Core.AlwaysRetryFailedSampling = value; this.RaisePropertyChanged(nameof(AlwaysRetryFailedSampling)); } }
 		}
-		bool _UseNativeFfmpegBinding;
-		[JsonPropertyName("UseNativeFfmpegBinding")]
+		[JsonIgnore]
 		public bool UseNativeFfmpegBinding {
-			get => _UseNativeFfmpegBinding;
-			set => this.RaiseAndSetIfChanged(ref _UseNativeFfmpegBinding, value);
+			get => Core.UseNativeFfmpegBinding;
+			set { if (Core.UseNativeFfmpegBinding != value) { Core.UseNativeFfmpegBinding = value; this.RaisePropertyChanged(nameof(UseNativeFfmpegBinding)); } }
 		}
-		string _CustomFFArguments = string.Empty;
-		[JsonPropertyName("CustomFFArguments")]
+		[JsonIgnore]
 		public string CustomFFArguments {
-			get => _CustomFFArguments;
-			set => this.RaiseAndSetIfChanged(ref _CustomFFArguments, value);
+			get => Core.CustomFFArguments;
+			set { if (Core.CustomFFArguments != value) { Core.CustomFFArguments = value; this.RaisePropertyChanged(nameof(CustomFFArguments)); } }
 		}
-		bool _BackupAfterListChanged = true;
-		[JsonPropertyName("BackupAfterListChanged")]
+		[JsonIgnore]
 		public bool BackupAfterListChanged {
 			get => _BackupAfterListChanged;
 			set => this.RaiseAndSetIfChanged(ref _BackupAfterListChanged, value);
 		}
-		bool _AskToSaveResultsOnExit = true;
-		[JsonPropertyName("AskToSaveResultsOnExit")]
+		bool _BackupAfterListChanged = true;
+		[JsonIgnore]
 		public bool AskToSaveResultsOnExit {
 			get => _AskToSaveResultsOnExit;
 			set => this.RaiseAndSetIfChanged(ref _AskToSaveResultsOnExit, value);
 		}
-		bool _IncludeNonExistingFiles;
-		[JsonPropertyName("IncludeNonExistingFiles")]
+		bool _AskToSaveResultsOnExit = true;
+		[JsonIgnore]
 		public bool IncludeNonExistingFiles {
-			get => _IncludeNonExistingFiles;
-			set => this.RaiseAndSetIfChanged(ref _IncludeNonExistingFiles, value);
+			get => Core.IncludeNonExistingFiles;
+			set { if (Core.IncludeNonExistingFiles != value) { Core.IncludeNonExistingFiles = value; this.RaisePropertyChanged(nameof(IncludeNonExistingFiles)); } }
 		}
-		bool _ScanAgainstEntireDatabase;
-		[JsonPropertyName("ScanAgainstEntireDatabase")]
+		[JsonIgnore]
 		public bool ScanAgainstEntireDatabase {
-			get => _ScanAgainstEntireDatabase;
-			set => this.RaiseAndSetIfChanged(ref _ScanAgainstEntireDatabase, value);
+			get => Core.ScanAgainstEntireDatabase;
+			set { if (Core.ScanAgainstEntireDatabase != value) { Core.ScanAgainstEntireDatabase = value; this.RaisePropertyChanged(nameof(ScanAgainstEntireDatabase)); } }
 		}
-		Core.FolderMatchMode _FolderMatchMode;
-		[JsonPropertyName("FolderMatchMode")]
-		public Core.FolderMatchMode FolderMatchMode {
-			get => _FolderMatchMode;
+		[JsonIgnore]
+		public VDF.Core.FolderMatchMode FolderMatchMode {
+			get => Core.FolderMatchMode;
 			set {
-				this.RaiseAndSetIfChanged(ref _FolderMatchMode, value);
-				this.RaisePropertyChanged(nameof(IsFolderMatchModeActive));
+				if (Core.FolderMatchMode != value) {
+					Core.FolderMatchMode = value;
+					this.RaisePropertyChanged(nameof(FolderMatchMode));
+					this.RaisePropertyChanged(nameof(IsFolderMatchModeActive));
+				}
 			}
 		}
-		public bool IsFolderMatchModeActive => FolderMatchMode != Core.FolderMatchMode.None;
-		int _SameFolderDepth = 1;
-		[JsonPropertyName("SameFolderDepth")]
+		public bool IsFolderMatchModeActive => FolderMatchMode != VDF.Core.FolderMatchMode.None;
+		[JsonIgnore]
 		public int SameFolderDepth {
-			get => _SameFolderDepth;
-			set => this.RaiseAndSetIfChanged(ref _SameFolderDepth, value);
+			get => Core.SameFolderDepth;
+			set { if (Core.SameFolderDepth != value) { Core.SameFolderDepth = value; this.RaisePropertyChanged(nameof(SameFolderDepth)); } }
 		}
-		bool _UsePHash;
-		[JsonPropertyName("UsePHash")]
+		[JsonIgnore]
 		public bool UsePHash {
-			get => _UsePHash;
-			set => this.RaiseAndSetIfChanged(ref _UsePHash, value);
+			get => Core.UsePHashing;
+			set { if (Core.UsePHashing != value) { Core.UsePHashing = value; this.RaisePropertyChanged(nameof(UsePHash)); } }
 		}
-		bool _UseExifCreationDate;
-		[JsonPropertyName("UseExifCreationDate")]
+		[JsonIgnore]
 		public bool UseExifCreationDate {
-			get => _UseExifCreationDate;
-			set => this.RaiseAndSetIfChanged(ref _UseExifCreationDate, value);
+			get => Core.UseExifCreationDate;
+			set { if (Core.UseExifCreationDate != value) { Core.UseExifCreationDate = value; this.RaisePropertyChanged(nameof(UseExifCreationDate)); } }
 		}
-		float _Percent = 95f;
-		[JsonPropertyName("Percent")]
+		[JsonIgnore]
 		public float Percent {
-			get => _Percent;
-			set => this.RaiseAndSetIfChanged(ref _Percent, value);
+			get => Core.Percent;
+			set { if (Core.Percent != value) { Core.Percent = value; this.RaisePropertyChanged(nameof(Percent)); } }
 		}
-		double _PercentDurationDifference = 20d;
-		[JsonPropertyName("PercentDurationDifference")]
+		[JsonIgnore]
 		public double PercentDurationDifference {
-			get => _PercentDurationDifference;
-			set => this.RaiseAndSetIfChanged(ref _PercentDurationDifference, value);
+			get => Core.PercentDurationDifference;
+			set { if (Core.PercentDurationDifference != value) { Core.PercentDurationDifference = value; this.RaisePropertyChanged(nameof(PercentDurationDifference)); } }
 		}
-		int _DurationDifferenceMinSeconds = 0;
-		[JsonPropertyName("DurationDifferenceMinSeconds")]
+		[JsonIgnore]
 		public int DurationDifferenceMinSeconds {
-			get => _DurationDifferenceMinSeconds;
-			set => this.RaiseAndSetIfChanged(ref _DurationDifferenceMinSeconds, value);
+			get => (int)Core.DurationDifferenceMinSeconds;
+			set { if ((int)Core.DurationDifferenceMinSeconds != value) { Core.DurationDifferenceMinSeconds = value; this.RaisePropertyChanged(nameof(DurationDifferenceMinSeconds)); } }
 		}
-		int _DurationDifferenceMaxSeconds = 0;
-		[JsonPropertyName("DurationDifferenceMaxSeconds")]
+		[JsonIgnore]
 		public int DurationDifferenceMaxSeconds {
-			get => _DurationDifferenceMaxSeconds;
-			set => this.RaiseAndSetIfChanged(ref _DurationDifferenceMaxSeconds, value);
+			get => (int)Core.DurationDifferenceMaxSeconds;
+			set { if ((int)Core.DurationDifferenceMaxSeconds != value) { Core.DurationDifferenceMaxSeconds = value; this.RaisePropertyChanged(nameof(DurationDifferenceMaxSeconds)); } }
 		}
-		int _MaxSamplingDurationSeconds = 0;
-		[JsonPropertyName("MaxSamplingDurationSeconds")]
+		[JsonIgnore]
 		public int MaxSamplingDurationSeconds {
-			get => _MaxSamplingDurationSeconds;
-			set => this.RaiseAndSetIfChanged(ref _MaxSamplingDurationSeconds, value);
+			get => (int)Core.MaxSamplingDurationSeconds;
+			set { if ((int)Core.MaxSamplingDurationSeconds != value) { Core.MaxSamplingDurationSeconds = value; this.RaisePropertyChanged(nameof(MaxSamplingDurationSeconds)); } }
 		}
-		int _Thumbnails = 1;
-		[JsonPropertyName("Thumbnails")]
+		[JsonIgnore]
 		public int Thumbnails {
-			get => _Thumbnails;
-			set => this.RaiseAndSetIfChanged(ref _Thumbnails, value);
+			get => Core.ThumbnailCount;
+			set { if (Core.ThumbnailCount != value) { Core.ThumbnailCount = value; this.RaisePropertyChanged(nameof(Thumbnails)); } }
 		}
 		[JsonPropertyName("CustomCommands")]
 		public CustomActionCommands CustomCommands { get; set; } = new();
-		string _CustomDatabaseFolder = string.Empty;
-		[JsonPropertyName("CustomDatabaseFolder")]
+		[JsonIgnore]
 		public string CustomDatabaseFolder {
-			get => _CustomDatabaseFolder;
-			set => this.RaiseAndSetIfChanged(ref _CustomDatabaseFolder, value);
+			get => Core.CustomDatabaseFolder;
+			set { if (Core.CustomDatabaseFolder != value) { Core.CustomDatabaseFolder = value; this.RaisePropertyChanged(nameof(CustomDatabaseFolder)); } }
 		}
-		int _DatabaseCheckpointIntervalMinutes = 5;
-		[JsonPropertyName("DatabaseCheckpointIntervalMinutes")]
+		[JsonIgnore]
 		public int DatabaseCheckpointIntervalMinutes {
-			get => _DatabaseCheckpointIntervalMinutes;
-			set => this.RaiseAndSetIfChanged(ref _DatabaseCheckpointIntervalMinutes, Math.Max(0, value));
+			get => Core.DatabaseCheckpointIntervalMinutes;
+			set {
+				var clamped = Math.Max(0, value);
+				if (Core.DatabaseCheckpointIntervalMinutes != clamped) { Core.DatabaseCheckpointIntervalMinutes = clamped; this.RaisePropertyChanged(nameof(DatabaseCheckpointIntervalMinutes)); }
+			}
 		}
 
 		public static void SaveSettings(string? path = null) {
@@ -446,11 +461,10 @@ namespace VDF.GUI.Data {
 			get => _ThumbnailDoubleClickAction;
 			set => this.RaiseAndSetIfChanged(ref _ThumbnailDoubleClickAction, value);
 		}
-		bool _FilterByFilePathContains;
-		[JsonPropertyName("FilterByFilePathContains")]
+		[JsonIgnore]
 		public bool FilterByFilePathContains {
-			get => _FilterByFilePathContains;
-			set => this.RaiseAndSetIfChanged(ref _FilterByFilePathContains, value);
+			get => Core.FilterByFilePathContains;
+			set { if (Core.FilterByFilePathContains != value) { Core.FilterByFilePathContains = value; this.RaisePropertyChanged(nameof(FilterByFilePathContains)); } }
 		}
 		ObservableCollection<string> _FilePathContainsTexts = new();
 		[JsonPropertyName("FilePathContainsTexts")]
@@ -458,11 +472,10 @@ namespace VDF.GUI.Data {
 			get => _FilePathContainsTexts;
 			set => this.RaiseAndSetIfChanged(ref _FilePathContainsTexts, value);
 		}
-		bool _FilterByFilePathNotContains;
-		[JsonPropertyName("FilterByFilePathNotContains")]
+		[JsonIgnore]
 		public bool FilterByFilePathNotContains {
-			get => _FilterByFilePathNotContains;
-			set => this.RaiseAndSetIfChanged(ref _FilterByFilePathNotContains, value);
+			get => Core.FilterByFilePathNotContains;
+			set { if (Core.FilterByFilePathNotContains != value) { Core.FilterByFilePathNotContains = value; this.RaisePropertyChanged(nameof(FilterByFilePathNotContains)); } }
 		}
 		ObservableCollection<string> _FilePathNotContainsTexts = new();
 		[JsonPropertyName("FilePathNotContainsTexts")]
@@ -470,54 +483,58 @@ namespace VDF.GUI.Data {
 			get => _FilePathNotContainsTexts;
 			set => this.RaiseAndSetIfChanged(ref _FilePathNotContainsTexts, value);
 		}
-		bool _FilterByFileSize;
-		[JsonPropertyName("FilterByFileSize")]
+		[JsonIgnore]
 		public bool FilterByFileSize {
-			get => _FilterByFileSize;
-			set => this.RaiseAndSetIfChanged(ref _FilterByFileSize, value);
+			get => Core.FilterByFileSize;
+			set { if (Core.FilterByFileSize != value) { Core.FilterByFileSize = value; this.RaisePropertyChanged(nameof(FilterByFileSize)); } }
 		}
-		int _MaximumFileSize = 999999999;
-		[JsonPropertyName("MaximumFileSize")]
+		[JsonIgnore]
 		public int MaximumFileSize {
-			get => _MaximumFileSize;
-			set => this.RaiseAndSetIfChanged(ref _MaximumFileSize, value);
+			get => Core.MaximumFileSize;
+			set { if (Core.MaximumFileSize != value) { Core.MaximumFileSize = value; this.RaisePropertyChanged(nameof(MaximumFileSize)); } }
 		}
-		int _MinimumFileSize = 0;
-		[JsonPropertyName("MinimumFileSize")]
+		[JsonIgnore]
 		public int MinimumFileSize {
-			get => _MinimumFileSize;
-			set => this.RaiseAndSetIfChanged(ref _MinimumFileSize, value);
+			get => Core.MinimumFileSize;
+			set { if (Core.MinimumFileSize != value) { Core.MinimumFileSize = value; this.RaisePropertyChanged(nameof(MinimumFileSize)); } }
 		}
 
-		bool _EnablePartialClipDetection;
-		[JsonPropertyName("EnablePartialClipDetection")]
+		[JsonIgnore]
 		public bool EnablePartialClipDetection {
-			get => _EnablePartialClipDetection;
-			set => this.RaiseAndSetIfChanged(ref _EnablePartialClipDetection, value);
+			get => Core.EnablePartialClipDetection;
+			set { if (Core.EnablePartialClipDetection != value) { Core.EnablePartialClipDetection = value; this.RaisePropertyChanged(nameof(EnablePartialClipDetection)); } }
 		}
-		double _PartialClipMinRatioPercent = 10d;
-		[JsonPropertyName("PartialClipMinRatioPercent")]
+		/// <summary>Forwarding property: GUI displays 0–100, Core stores 0.0–1.0 ratio.</summary>
+		[JsonIgnore]
 		public double PartialClipMinRatioPercent {
-			get => _PartialClipMinRatioPercent;
-			set => this.RaiseAndSetIfChanged(ref _PartialClipMinRatioPercent, value);
+			get => Core.PartialClipMinRatio * 100.0;
+			set {
+				var ratio = value / 100.0;
+				if (Core.PartialClipMinRatio != ratio) { Core.PartialClipMinRatio = ratio; this.RaisePropertyChanged(nameof(PartialClipMinRatioPercent)); }
+			}
 		}
-		double _PartialClipSimilarityThresholdPercent = 80d;
-		[JsonPropertyName("PartialClipSimilarityThresholdPercent")]
+		/// <summary>Forwarding property: GUI displays 0–100, Core stores 0.0–1.0 ratio.</summary>
+		[JsonIgnore]
 		public double PartialClipSimilarityThresholdPercent {
-			get => _PartialClipSimilarityThresholdPercent;
-			set => this.RaiseAndSetIfChanged(ref _PartialClipSimilarityThresholdPercent, value);
+			get => Core.PartialClipSimilarityThreshold * 100.0;
+			set {
+				var ratio = value / 100.0;
+				if (Core.PartialClipSimilarityThreshold != ratio) { Core.PartialClipSimilarityThreshold = ratio; this.RaisePropertyChanged(nameof(PartialClipSimilarityThresholdPercent)); }
+			}
 		}
-		bool _PartialClipRequireVisualMatch = true;
-		[JsonPropertyName("PartialClipRequireVisualMatch")]
+		[JsonIgnore]
 		public bool PartialClipRequireVisualMatch {
-			get => _PartialClipRequireVisualMatch;
-			set => this.RaiseAndSetIfChanged(ref _PartialClipRequireVisualMatch, value);
+			get => Core.PartialClipRequireVisualMatch;
+			set { if (Core.PartialClipRequireVisualMatch != value) { Core.PartialClipRequireVisualMatch = value; this.RaisePropertyChanged(nameof(PartialClipRequireVisualMatch)); } }
 		}
-		double _PartialClipVisualThresholdPercent = 85d;
-		[JsonPropertyName("PartialClipVisualThresholdPercent")]
+		/// <summary>Forwarding property: GUI displays 0–100, Core stores 0.0–1.0 ratio.</summary>
+		[JsonIgnore]
 		public double PartialClipVisualThresholdPercent {
-			get => _PartialClipVisualThresholdPercent;
-			set => this.RaiseAndSetIfChanged(ref _PartialClipVisualThresholdPercent, value);
+			get => Core.PartialClipVisualThreshold * 100.0;
+			set {
+				var ratio = value / 100.0;
+				if (Core.PartialClipVisualThreshold != ratio) { Core.PartialClipVisualThreshold = ratio; this.RaisePropertyChanged(nameof(PartialClipVisualThresholdPercent)); }
+			}
 		}
 
 		List<string> _QualityCriteriaOrder = ["Duration", "Resolution", "FPS", "Bitrate", "Audio Bitrate", "Size"];
@@ -566,7 +583,80 @@ namespace VDF.GUI.Data {
 
 			path = ResolveSettingsPath(path);
 			if (!File.Exists(path)) return;
-			instance = JsonSerializer.Deserialize(File.ReadAllBytes(path), GuiJsonContext.Default.SettingsFile);
+			var json = File.ReadAllText(path);
+			// Migrate legacy flat JSON (pre-composition) to the nested "core" format.
+			json = MigrateLegacyJson(json);
+			instance = JsonSerializer.Deserialize(json, GuiJsonContext.Default.SettingsFile);
+		}
+
+		/// <summary>
+		/// If the JSON has flat Core fields at the top level (old format), moves them
+		/// into a nested <c>"core"</c> object so the composition-based deserializer
+		/// can read them.  Handles name mapping (e.g. <c>Thumbnails</c> →
+		/// <c>ThumbnailCount</c>) and unit conversion (e.g.
+		/// <c>PartialClipMinRatioPercent</c> → <c>PartialClipMinRatio</c> /100).
+		/// </summary>
+		static string MigrateLegacyJson(string json) {
+			JsonNode? root;
+			try { root = JsonNode.Parse(json); }
+			catch { return json; } // malformed — let the deserializer report the error
+			if (root is not JsonObject obj) return json;
+			if (obj.ContainsKey("core")) return json; // already new format
+
+			var core = new JsonObject();
+
+			// Direct name matches — move as-is from root to core.
+			string[] directMoves = [
+				"IgnoreReadOnlyFolders", "ExcludeHardLinks", "IgnoreReparsePoints",
+				"IgnoreBlackPixels", "IgnoreWhitePixels", "MaxDegreeOfParallelism",
+				"HardwareAccelerationMode", "CompareHorizontallyFlipped",
+				"IncludeSubDirectories", "IncludeImages", "GeneratePreviewThumbnails",
+				"ThumbnailMaxWidth", "ExtendedFFToolsLogging", "LogExcludedFiles",
+				"AlwaysRetryFailedSampling", "UseNativeFfmpegBinding",
+				"CustomFFArguments", "IncludeNonExistingFiles",
+				"ScanAgainstEntireDatabase", "FolderMatchMode", "SameFolderDepth",
+				"UseExifCreationDate", "Percent", "PercentDurationDifference",
+				"DurationDifferenceMinSeconds", "DurationDifferenceMaxSeconds",
+				"MaxSamplingDurationSeconds", "CustomDatabaseFolder",
+				"DatabaseCheckpointIntervalMinutes", "FilterByFilePathContains",
+				"FilterByFilePathNotContains", "FilterByFileSize",
+				"MaximumFileSize", "MinimumFileSize",
+				"EnablePartialClipDetection", "PartialClipRequireVisualMatch",
+				"LanguageCode",
+			];
+			foreach (var key in directMoves) {
+				if (obj.TryGetPropertyValue(key, out var v)) {
+					obj.Remove(key); // detach parent before re-parenting under "core"
+					core[key] = v;
+				}
+			}
+
+			// Name-mapped moves.
+			if (obj.TryGetPropertyValue("Thumbnails", out var thumbs)) {
+				obj.Remove("Thumbnails");
+				core["ThumbnailCount"] = thumbs;
+			}
+			if (obj.TryGetPropertyValue("UsePHash", out var phash)) {
+				obj.Remove("UsePHash");
+				core["UsePHashing"] = phash;
+			}
+
+			// Name-mapped + unit-converted (percent 0–100 → ratio 0.0–1.0).
+			if (obj.TryGetPropertyValue("PartialClipMinRatioPercent", out var pct)) {
+				core["PartialClipMinRatio"] = pct?.GetValue<double>() / 100.0;
+				obj.Remove("PartialClipMinRatioPercent");
+			}
+			if (obj.TryGetPropertyValue("PartialClipSimilarityThresholdPercent", out pct)) {
+				core["PartialClipSimilarityThreshold"] = pct?.GetValue<double>() / 100.0;
+				obj.Remove("PartialClipSimilarityThresholdPercent");
+			}
+			if (obj.TryGetPropertyValue("PartialClipVisualThresholdPercent", out pct)) {
+				core["PartialClipVisualThreshold"] = pct?.GetValue<double>() / 100.0;
+				obj.Remove("PartialClipVisualThresholdPercent");
+			}
+
+			obj["core"] = core;
+			return root.ToJsonString();
 		}
 
 		static bool LoadOldSettings(string? path) {
@@ -600,9 +690,9 @@ namespace VDF.GUI.Data {
 			//09.03.21: UseCuda is obsolete and has been replaced with UseHardwareAcceleration.
 			foreach (var n in xDoc.Descendants("UseCuda"))
 				if (bool.TryParse(n.Value, out var value))
-					Instance.HardwareAccelerationMode = value ? Core.FFTools.FFHardwareAccelerationMode.auto : Core.FFTools.FFHardwareAccelerationMode.none;
+					Instance.HardwareAccelerationMode = value ? VDF.Core.FFTools.FFHardwareAccelerationMode.auto : VDF.Core.FFTools.FFHardwareAccelerationMode.none;
 			foreach (var n in xDoc.Descendants("HardwareAccelerationMode"))
-				if (Enum.TryParse<Core.FFTools.FFHardwareAccelerationMode>(n.Value, out var value))
+				if (Enum.TryParse<VDF.Core.FFTools.FFHardwareAccelerationMode>(n.Value, out var value))
 					Instance.HardwareAccelerationMode = value;
 			foreach (var n in xDoc.Descendants("GeneratePreviewThumbnails"))
 				if (bool.TryParse(n.Value, out var value))

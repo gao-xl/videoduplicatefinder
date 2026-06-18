@@ -16,13 +16,13 @@
 
 using Microsoft.AspNetCore.SignalR;
 using VDF.Core;
+using VDF.Core.Services;
 using VDF.Core.Utils;
 using VDF.Core.ViewModels;
 using VDF.Web.Hubs;
 using VDF.Web.Models;
 
 namespace VDF.Web.Services {
-	public enum ScanState { Idle, Scanning, Comparing, Done, Aborted, Error }
 
 	/// <summary>Outcome of a batch file operation (delete / move / link).</summary>
 	public sealed class FileOpResult {
@@ -33,43 +33,48 @@ namespace VDF.Web.Services {
 		public List<string> Warnings { get; } = new();
 	}
 
-	public class ScanProgressArgs {
-		public string CurrentFile { get; init; } = string.Empty;
-		public int Current { get; init; }
-		public int Max { get; init; }
-		public TimeSpan Elapsed { get; init; }
-		public TimeSpan Remaining { get; init; }
-		public string CurrentStage { get; init; } = string.Empty;
-		public int StageCurrent { get; init; }
-		public int StageMax { get; init; }
-		public string? CurrentThumbnailPath { get; init; }
-	}
-
 	/// <summary>
-	/// Singleton service that owns the ScanEngine instance and exposes
-	/// scan lifecycle operations to Blazor components via events and state.
+	/// Singleton service that owns the <see cref="ScanEngine"/> instance (via
+	/// <see cref="ScanOrchestrator"/>) and exposes scan lifecycle operations to
+	/// Blazor components and REST/SSE endpoints via events and state.
 	/// </summary>
 	public sealed class ScanService : IDisposable {
 		readonly ScanEngine _engine = new();
+		readonly ScanOrchestrator _orchestrator;
+		readonly FileOperationsService _fileOps;
+		readonly ResultsStore _resultsStore = new();
 		readonly WebSettingsService _settingsService;
 		readonly IHubContext<ScanHub>? _hubContext;
 		CancellationTokenSource _cts = new();
 
-		public ScanState State { get; private set; } = ScanState.Idle;
-		public string? ErrorMessage { get; private set; }
-		public ScanProgressArgs? LastProgress { get; private set; }
+		/// <summary>Current scan state, delegated to the orchestrator.</summary>
+		public ScanState State => _orchestrator.State;
+		/// <summary>Last throttled progress payload from the orchestrator.</summary>
+		public ScanProgressArgs? LastProgress => _orchestrator.LastProgress;
+		/// <summary>Error message when <see cref="State"/> is <see cref="ScanState.Error"/>.</summary>
+		public string? ErrorMessage => _orchestrator.ErrorMessage;
 		/// <summary>Total files hashed (captured when BuildingHashesDone fires).</summary>
-		public int FilesHashed { get; private set; }
+		public int FilesHashed => _orchestrator.FilesHashed;
 		public IReadOnlyCollection<DuplicateItem> Duplicates => _engine.Duplicates;
-		public Settings Settings => _engine.Settings;
+		/// <summary>Gets or sets the scan engine's settings.  The setter allows the
+		/// settings endpoints to replace the entire object after a PUT.</summary>
+		public Settings Settings {
+			get => _engine.Settings;
+			set {
+				_engine.Settings = value;
+				ThumbnailService.SetAllowedRoots(value.IncludeList.ToList());
+			}
+		}
 
-		/// <summary>Caches for the thumbnail endpoints — LRU eviction with size limits.</summary>
-		public VDF.Web.Endpoints.ThumbnailLruCache HqThumbCache { get; } = new(maxSize: 2048);
-		public VDF.Web.Endpoints.ThumbnailLruCache FullThumbCache { get; } = new(maxSize: 64);
+		/// <summary>
+		/// Two-level thumbnail cache (in-memory LRU + persistent pack). Replaces the previous
+		/// HqThumbCache/FullThumbCache pair. Web stores the pack in its data dir so thumbnails
+		/// survive restarts.
+		/// </summary>
+		public ThumbnailService ThumbnailService { get; }
 
 		void ClearThumbnailCaches() {
-			HqThumbCache.Clear();
-			FullThumbCache.Clear();
+			ThumbnailService.ClearMemoryCache();
 		}
 
 		public event Action? StateChanged;
@@ -77,45 +82,61 @@ namespace VDF.Web.Services {
 		public ScanService(WebSettingsService settingsService, IHubContext<ScanHub>? hubContext = null) {
 			_settingsService = settingsService;
 			_hubContext = hubContext;
-			settingsService.Load(_engine.Settings);
+			_orchestrator = new ScanOrchestrator(_engine);
+			_fileOps = new FileOperationsService(_engine);
+			// Load returns a fully-populated, validated Core Settings instance —
+			// assign it directly so new Core fields need zero sync code.
+			var loaded = settingsService.Load();
+			if (loaded != null)
+				_engine.Settings = loaded;
 
+			// Two-level thumbnail cache: in-memory LRU + persistent pack in the data dir.
+			// The pack survives restarts so Web users don't lose all thumbnails on restart.
+			var thumbPackFolder = Path.Combine(CoreUtils.StateFolder, "thumbnails");
+			ThumbnailService = new ThumbnailService(_engine, new ThumbnailServiceOptions {
+				PackFolder = thumbPackFolder,
+				AllowedRoots = _engine.Settings.IncludeList.ToList(),
+			});
+
+			// The orchestrator handles state transitions, progress throttling, and
+			// completion. ScanService just forwards them to SignalR/SSE subscribers.
+			_orchestrator.StateChanged += (_, _) => Notify();
+			_orchestrator.ProgressChanged += (_, _) => Notify();
+			_orchestrator.Completed += OnOrchestratorCompleted;
 			_engine.FilesEnumerated += (_, _) => Notify();
-			_engine.BuildingHashesDone += (_, _) => {
-				FilesHashed = LastProgress?.Max ?? 0;
-				LastProgress = null;
-				State = ScanState.Comparing;
-				Notify();
-			};
-			_engine.Progress += (_, e) => {
-				string? thumbnailPath = null;
-				if (!string.IsNullOrEmpty(e.CurrentFile) && File.Exists(e.CurrentFile)) {
-					thumbnailPath = e.CurrentFile;
-				}
-				LastProgress = new ScanProgressArgs {
-					CurrentFile = e.CurrentFile,
-					Current = e.CurrentPosition,
-					Max = e.MaxPosition,
-					Elapsed = e.Elapsed,
-					Remaining = e.Remaining,
-					CurrentStage = e.CurrentStage ?? string.Empty,
-					StageCurrent = e.StageCurrent,
-					StageMax = e.StageMax,
-					CurrentThumbnailPath = thumbnailPath,
-				};
-				Notify();
-			};
-			_engine.ScanDone += (_, _) => {
-				// Skip low-res thumbnail retrieval — WebUI loads HQ thumbnails on demand
-				// via the /thumbnail/hq endpoint. This makes results available immediately.
-				State = ScanState.Done;
-				LastProgress = null;
-				Notify();
-			};
-			_engine.ScanAborted += (_, _) => {
-				State = ScanState.Aborted;
-				LastProgress = null;
-				Notify();
-			};
+
+			TryRestoreResults();
+		}
+
+		void OnOrchestratorCompleted(object? sender, ScanCompletedEventArgs e) {
+			Notify();
+			if (e.State == ScanState.Done)
+				_ = PersistResultsAsync();
+		}
+
+		void TryRestoreResults() {
+			try {
+				var path = ResultsStore.DefaultStateBackupPath();
+				if (!File.Exists(path)) return;
+				var loaded = _resultsStore.LoadAsync(path).GetAwaiter().GetResult();
+				_engine.Duplicates.Clear();
+				foreach (var entry in loaded.Items)
+					_engine.Duplicates.Add(entry.Item);
+			}
+			catch {
+				// Corrupt backup — start fresh; user can re-scan.
+			}
+		}
+
+		async Task PersistResultsAsync() {
+			if (_engine.Duplicates.Count == 0) return;
+			try {
+				var entries = _engine.Duplicates.Select(d => new ScanResultEntry { Item = d }).ToList();
+				await _resultsStore.SaveJsonAsync(ResultsStore.DefaultStateBackupPath(), entries);
+			}
+			catch {
+				// Best-effort persistence; scan results remain in memory.
+			}
 		}
 
 		public void StartScanAndCompare() {
@@ -123,65 +144,59 @@ namespace VDF.Web.Services {
 			_cts?.Cancel();
 			_cts?.Dispose();
 			_cts = new CancellationTokenSource();
-			State = ScanState.Scanning;
-			ErrorMessage = null;
-			LastProgress = null;
-			FilesHashed = 0;
-			_engine.Duplicates.Clear();
 			ClearThumbnailCaches();
-			try {
-				_ = RunSearchWithAsyncErrorHandling();
-			}
-			catch (Exception ex) {
-				SetError(ex);
-				return;
-			}
-			Notify();
+			// Fire-and-forget: the orchestrator drives the scan to completion and
+			// fires StateChanged/ProgressChanged/Completed events that Notify()
+			// forwards to SignalR/SSE subscribers.
+			_ = RunScanViaOrchestrator(_cts.Token);
 		}
 
 		/// <summary>
-		/// Wraps StartSearch() fire-and-forget so that exceptions thrown after the
-		/// first await are caught and routed to SetError instead of crashing the process
-		/// (which is what happens with unobserved Task exceptions from async void).
+		/// Drives the scan through <see cref="ScanOrchestrator.StartAsync"/>. The
+		/// orchestrator handles state transitions, cancellation, progress throttling,
+		/// and error handling — replacing the previous RunSearchWithAsyncErrorHandling.
 		/// </summary>
-		async Task RunSearchWithAsyncErrorHandling() {
+		async Task RunScanViaOrchestrator(CancellationToken ct) {
 			try {
-				await _engine.StartSearch();
+				await _orchestrator.StartAsync(_engine.Settings, ct);
 			}
 			catch (Exception ex) {
-				SetError(ex);
+				// Orchestrator.SetError is normally called internally, but guard
+				// against exceptions thrown before the orchestrator's catch block.
+				_orchestrator.SetError(ex);
+				Notify();
 			}
 		}
 
 		/// <summary>Called from global exception handlers to surface post-await async void exceptions.</summary>
-		public void SetError(Exception ex) {
-			State = ScanState.Error;
-			ErrorMessage = ex.Message;
-			LastProgress = null;
-			Notify();
-		}
+		public void SetError(Exception ex) => _orchestrator.SetError(ex);
 
-		public void Pause() => _engine.Pause();
-		public void Resume() => _engine.Resume();
+		public void Pause() => _orchestrator.PauseAsync();
+		public void Resume() => _orchestrator.ResumeAsync();
 
 		public void Stop() {
-			_engine.Stop();
 			_cts.Cancel();
+			_ = _orchestrator.CancelAsync();
 		}
 
 		public bool SaveSettings() => _settingsService.Save(_engine.Settings);
 
 		public void Reset() {
 			if (State == ScanState.Scanning || State == ScanState.Comparing) return;
-			State = ScanState.Idle;
-			ErrorMessage = null;
-			LastProgress = null;
-			FilesHashed = 0;
-			_engine.Duplicates.Clear();
+			_orchestrator.Reset();
 			ClearThumbnailCaches();
+			TryDeleteBackup();
 			// Keep IncludeList/BlackList — resetting scan results should not
 			// throw away the paths the user configured.
 			Notify();
+		}
+
+		void TryDeleteBackup() {
+			try {
+				var path = ResultsStore.DefaultStateBackupPath();
+				if (File.Exists(path)) File.Delete(path);
+			}
+			catch { /* ignore */ }
 		}
 
 		/// <summary>Removes items from the results list without touching the files on disk.</summary>
@@ -189,20 +204,12 @@ namespace VDF.Web.Services {
 			foreach (var item in items.ToList())
 				_engine.Duplicates.Remove(item);
 			DropSingletonGroups();
+			_ = PersistResultsAsync();
 			Notify();
 		}
 
-		/// <summary>Drops groups that have shrunk to a single item — a group of one is not a duplicate.</summary>
-		void DropSingletonGroups() {
-			var keep = _engine.Duplicates
-				.GroupBy(d => d.GroupId)
-				.Where(g => g.Count() > 1)
-				.Select(g => g.Key)
-				.ToHashSet();
-			foreach (var d in _engine.Duplicates.ToList())
-				if (!keep.Contains(d.GroupId))
-					_engine.Duplicates.Remove(d);
-		}
+		/// <summary>Drops groups that have shrunk to a single item — a group of one is not a duplicate. Delegates to <see cref="FileOperationsService.DropSingletonGroups"/>.</summary>
+		void DropSingletonGroups() => _fileOps.DropSingletonGroups();
 
 		// === Batch file operations (delete / move / link) ===
 
@@ -235,80 +242,16 @@ namespace VDF.Web.Services {
 			if (!TryBeginFileOp(permanent ? "Deleting" : "Moving to trash", list.Count))
 				return result;
 			try {
-				await Task.Run(() => {
-					// Windows: recycle the whole batch in one shell call — one
-					// SHFileOperation per file pays the full shell round-trip each time.
-					var batchRecycled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-					if (!permanent && OperatingSystem.IsWindows()) {
-						var existing = list.Where(d => File.Exists(d.Path)).Select(d => d.Path).ToList();
-						if (existing.Count > 0) {
-							var fs = new FileUtils.SHFILEOPSTRUCT {
-								wFunc = FileUtils.FileOperationType.FO_DELETE,
-								pFrom = string.Join('\0', existing) + "\0\0",
-								fFlags = FileUtils.FileOperationFlags.FOF_ALLOWUNDO |
-										 FileUtils.FileOperationFlags.FOF_NOCONFIRMATION |
-										 FileUtils.FileOperationFlags.FOF_NOERRORUI |
-										 FileUtils.FileOperationFlags.FOF_SILENT
-							};
-							int shResult = FileUtils.SHFileOperation(ref fs);
-							if (shResult != 0)
-								Logger.Instance.Info($"SHFileOperation returned {shResult:X} for a batch of {existing.Count} file(s); checking which files were actually recycled.");
-							foreach (var p in existing)
-								batchRecycled.Add(p);
-						}
-					}
-
-					var sw = System.Diagnostics.Stopwatch.StartNew();
-					foreach (var item in list) {
-						try {
-							bool exists = File.Exists(item.Path);
-							if (!exists) {
-								if (batchRecycled.Contains(item.Path))
-									result.FreedBytes += Math.Max(0, item.SizeLong);
-								// Already gone — still remove the entry and database record.
-							}
-							else if (permanent) {
-								File.Delete(item.Path);
-								result.FreedBytes += Math.Max(0, item.SizeLong);
-							}
-							else if (OperatingSystem.IsWindows()) {
-								// The batch ran but this file is still there.
-								throw new IOException("the shell did not move the file to the recycle bin");
-							}
-						else {
-							// System trash, falling back to permanent delete (e.g.
-							// cross-filesystem files where trashing means a full copy).
-							if (!FileUtils.MoveToTrash(item.Path)) {
-								// Warn user that file will be permanently deleted (not trashed)
-								string warning = $"File on different filesystem — will be permanently deleted instead of moved to trash: {Path.GetFileName(item.Path)}";
-								lock (result.Warnings) {
-									if (result.Warnings.Count < 5)
-										result.Warnings.Add(warning);
-									else if (result.Warnings.Count == 5)
-										result.Warnings.Add($"... and {list.Count - 5} more files on different filesystems");
-								}
-								File.Delete(item.Path);
-							}
-							result.FreedBytes += Math.Max(0, item.SizeLong);
-						}
-							_engine.Duplicates.Remove(item);
-							// Path-only entry — FileEntry(string) stats the file and throws once it's gone.
-							ScanEngine.RemoveFromDatabase(new FileEntry { Path = item.Path });
-							result.Done++;
-						}
-						catch (Exception ex) {
-							result.Errors.Add($"{Path.GetFileName(item.Path)}: {ex.Message}");
-							result.Failed++;
-						}
-						finally {
-							FileOpCurrent++;
-							if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
-						}
-					}
-					if (result.Done > 0)
-						ScanEngine.SaveDatabase();
-					DropSingletonGroups();
+				var sw = System.Diagnostics.Stopwatch.StartNew();
+				var progress = new SyncProgress(count => {
+					FileOpCurrent = count;
+					if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
 				});
+				// recycleBin = !permanent: permanent deletes bypass the recycle bin.
+				var core = await _fileOps.DeleteAsync(list.Select(i => i.Path), !permanent, CancellationToken.None, progress);
+				MapCoreResult(core, result, list);
+				_fileOps.DropSingletonGroups();
+				_ = PersistResultsAsync();
 			}
 			finally { EndFileOp(); }
 			return result;
@@ -326,36 +269,32 @@ namespace VDF.Web.Services {
 			if (!TryBeginFileOp("Moving", list.Count))
 				return result;
 			try {
-				await Task.Run(() => {
-					var sw = System.Diagnostics.Stopwatch.StartNew();
-					foreach (var item in list) {
-						try {
-							string dest = Path.Combine(destinationFolder, Path.GetFileName(item.Path));
-							// Avoid overwriting existing files at destination
-							int n = 1;
-							string ext = Path.GetExtension(dest);
-							string nameNoExt = Path.GetFileNameWithoutExtension(dest);
-							while (File.Exists(dest))
-								dest = Path.Combine(destinationFolder, $"{nameNoExt}_{n++}{ext}");
-							File.Move(item.Path, dest);
-							if (ScanEngine.GetFromDatabase(item.Path, out var dbEntry) && dbEntry != null)
-								ScanEngine.UpdateFilePathInDatabase(dest, dbEntry);
-							_engine.Duplicates.Remove(item);
-							result.Done++;
-						}
-						catch (Exception ex) {
-							result.Errors.Add($"{Path.GetFileName(item.Path)}: {ex.Message}");
-							result.Failed++;
-						}
-						finally {
-							FileOpCurrent++;
-							if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
-						}
-					}
-					if (result.Done > 0)
-						ScanEngine.SaveDatabase();
-					DropSingletonGroups();
+				// Pre-compute destination paths with collision avoidance against both
+				// existing files and earlier items in this same batch.
+				var moves = new List<(string source, string dest)>();
+				var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				foreach (var item in list) {
+					string dest = Path.Combine(destinationFolder, Path.GetFileName(item.Path));
+					int n = 1;
+					string ext = Path.GetExtension(dest);
+					string nameNoExt = Path.GetFileNameWithoutExtension(dest);
+					while (File.Exists(dest) || taken.Contains(dest))
+						dest = Path.Combine(destinationFolder, $"{nameNoExt}_{n++}{ext}");
+					taken.Add(dest);
+					moves.Add((item.Path, dest));
+				}
+				var sw = System.Diagnostics.Stopwatch.StartNew();
+				var progress = new SyncProgress(count => {
+					FileOpCurrent = count;
+					if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
 				});
+				var core = await _fileOps.MoveAsync(moves, CancellationToken.None, progress);
+				result.Done = core.Done;
+				result.Failed = core.Failed;
+				result.Errors.AddRange(core.Errors);
+				result.Warnings.AddRange(core.Warnings);
+				_fileOps.DropSingletonGroups();
+				_ = PersistResultsAsync();
 			}
 			finally { EndFileOp(); }
 			return result;
@@ -371,64 +310,76 @@ namespace VDF.Web.Services {
 			if (!TryBeginFileOp(hardLinks ? "Creating hardlinks" : "Creating symlinks", list.Count))
 				return result;
 			try {
-				await Task.Run(() => {
-					var selected = list.ToHashSet();
-					var keeperByGroup = _engine.Duplicates
-						.Where(d => !selected.Contains(d))
-						.GroupBy(d => d.GroupId)
-						.ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.Similarity).FirstOrDefault(d => File.Exists(d.Path)));
+				// Keeper per group: highest-similarity unselected member that still exists.
+				var selected = list.ToHashSet();
+				var keeperByGroup = _engine.Duplicates
+					.Where(d => !selected.Contains(d))
+					.GroupBy(d => d.GroupId)
+					.ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.Similarity).FirstOrDefault(d => File.Exists(d.Path)));
 
-					var sw = System.Diagnostics.Stopwatch.StartNew();
-					foreach (var item in list) {
-						try {
-							if (!File.Exists(item.Path)) {
-								// Already gone — still remove the entry and database record.
-							}
-						else {
-							keeperByGroup.TryGetValue(item.GroupId, out var keeper);
-							if (keeper == null)
-								throw new IOException("no unselected file is left in this group to link to");
-							long size = Math.Max(0, item.SizeLong);
-							// Create link to a temporary path first, then delete original, then rename.
-							// This ensures the original file is not lost if link creation fails.
-							string tempPath = item.Path + ".vdf_link_tmp";
-							try {
-								if (hardLinks)
-									HardLinkUtils.CreateHardLink(tempPath, keeper.Path);
-								else
-									File.CreateSymbolicLink(tempPath, keeper.Path);
-								// Link created successfully — now safe to delete original and rename
-								File.Delete(item.Path);
-								File.Move(tempPath, item.Path);
-							}
-							catch {
-								// Cleanup temp file if it was created
-								try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
-								throw;
-							}
-							result.FreedBytes += size;
-						}
-							_engine.Duplicates.Remove(item);
-							ScanEngine.RemoveFromDatabase(new FileEntry { Path = item.Path });
-							result.Done++;
-						}
-						catch (Exception ex) {
-							result.Errors.Add($"{Path.GetFileName(item.Path)}: {ex.Message}");
-							result.Failed++;
-						}
-						finally {
-							FileOpCurrent++;
-							if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
-						}
+				// Items with no keeper are reported as failures here (preserving the
+				// original error message); the rest are delegated to the Core service.
+				int preFailed = 0;
+				var links = new List<(string target, string linkPath)>();
+				foreach (var item in list) {
+					keeperByGroup.TryGetValue(item.GroupId, out var keeper);
+					if (keeper == null) {
+						result.Errors.Add($"{Path.GetFileName(item.Path)}: no unselected file is left in this group to link to");
+						result.Failed++;
+						preFailed++;
+						continue;
 					}
-					if (result.Done > 0)
-						ScanEngine.SaveDatabase();
-					DropSingletonGroups();
-				});
+					links.Add((keeper.Path, item.Path));
+				}
+
+				if (links.Count > 0) {
+					var sw = System.Diagnostics.Stopwatch.StartNew();
+					var progress = new SyncProgress(count => {
+						FileOpCurrent = preFailed + count;
+						if (sw.ElapsedMilliseconds >= 100) { sw.Restart(); Notify(); }
+					});
+					var core = hardLinks
+						? await _fileOps.CreateHardLinksAsync(links, CancellationToken.None, progress)
+						: await _fileOps.CreateSymbolicLinksAsync(links, CancellationToken.None, progress);
+					result.Done = core.Done;
+					result.Failed += core.Failed;
+					result.Errors.AddRange(core.Errors);
+					result.Warnings.AddRange(core.Warnings);
+					var succeeded = core.SucceededPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+					foreach (var item in list)
+						if (succeeded.Contains(item.Path))
+							result.FreedBytes += Math.Max(0, item.SizeLong);
+				}
+				_fileOps.DropSingletonGroups();
+				_ = PersistResultsAsync();
 			}
 			finally { EndFileOp(); }
 			return result;
 		}
+
+		/// <summary>Copies Done/Failed/Errors/Warnings and computes FreedBytes from succeeded paths.</summary>
+		static void MapCoreResult(FileOperationResult core, FileOpResult web, List<DuplicateItem> list) {
+			web.Done = core.Done;
+			web.Failed = core.Failed;
+			web.Errors.AddRange(core.Errors);
+			web.Warnings.AddRange(core.Warnings);
+			var succeeded = core.SucceededPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+			foreach (var item in list)
+				if (succeeded.Contains(item.Path))
+					web.FreedBytes += Math.Max(0, item.SizeLong);
+		}
+
+		/// <summary>
+		/// Synchronous <see cref="IProgress{T}"/> — invokes the callback directly on the
+		/// reporting thread (the Core service's worker), matching the pre-refactor
+		/// behavior where FileOpCurrent was incremented inline inside the Task.Run loop.
+		/// </summary>
+		sealed class SyncProgress : IProgress<int> {
+			readonly Action<int> _action;
+			public SyncProgress(Action<int> action) => _action = action;
+			public void Report(int value) => _action(value);
+		}
+
 
 		/// <summary>Removes database entries for files that no longer exist or have errors.</summary>
 		public async Task<int> CleanDatabaseAsync() {
@@ -459,34 +410,50 @@ namespace VDF.Web.Services {
 			return _engine.TestFilePairAsync(fileA, fileB);
 		}
 
-		void Notify() {
-			StateChanged?.Invoke();
-			// Broadcast via SignalR
-			if (_hubContext != null) {
-				_ = _hubContext.Clients.All.SendAsync("StateChanged", State.ToString());
-				if (LastProgress != null) {
-					var payload = new ScanProgressResponse {
-						State = State.ToString(),
-						FilesHashed = FilesHashed,
-						CurrentFile = LastProgress.CurrentFile,
-						Current = LastProgress.Current,
-						Max = LastProgress.Max,
-						ElapsedSeconds = LastProgress.Elapsed.TotalSeconds,
-						RemainingSeconds = LastProgress.Remaining.TotalSeconds,
-						CurrentStage = LastProgress.CurrentStage,
-						StageCurrent = LastProgress.StageCurrent,
-						StageMax = LastProgress.StageMax,
-						ErrorMessage = ErrorMessage,
-						CurrentThumbnailPath = LastProgress.CurrentThumbnailPath,
-					};
-					_ = _hubContext.Clients.All.SendAsync("ProgressUpdate", payload);
-				}
-				if (FileOpRunning) {
-					_ = _hubContext.Clients.All.SendAsync("FileOpProgress", FileOpCurrent, FileOpMax, FileOpVerb);
-				}
+		/// <summary>
+	/// Creates a <see cref="ScanProgressResponse"/> from the current scan state
+	/// and optional progress event. Centralises the 3 separate construction sites
+	/// that previously existed (ScanService.Notify, ScanEndpoints, SseEndpoints).
+	/// </summary>
+	public ScanProgressResponse BuildProgressResponse() {
+		var p = LastProgress;
+		string? thumbnailPath = null;
+		if (p != null && !string.IsNullOrEmpty(p.CurrentFile) && File.Exists(p.CurrentFile))
+			thumbnailPath = p.CurrentFile;
+		return new ScanProgressResponse {
+			State = State.ToString(),
+			FilesHashed = FilesHashed,
+			CurrentFile = p?.CurrentFile ?? string.Empty,
+			Current = p?.FilesProcessed ?? 0,
+			Max = p?.FilesTotal ?? 0,
+			ElapsedSeconds = p?.Elapsed.TotalSeconds ?? 0,
+			RemainingSeconds = p?.RemainingTime.TotalSeconds ?? 0,
+			CurrentStage = p?.Message ?? string.Empty,
+			StageCurrent = p?.StageCurrent ?? 0,
+			StageMax = p?.StageMax ?? 0,
+			ErrorMessage = ErrorMessage,
+			CurrentThumbnailPath = thumbnailPath,
+		};
+	}
+
+	void Notify() {
+		StateChanged?.Invoke();
+		// Broadcast via SignalR
+		if (_hubContext != null) {
+			_ = _hubContext.Clients.All.SendAsync("StateChanged", State.ToString());
+			if (LastProgress != null) {
+				var payload = BuildProgressResponse();
+				_ = _hubContext.Clients.All.SendAsync("ProgressUpdate", payload);
+			}
+			if (FileOpRunning) {
+				_ = _hubContext.Clients.All.SendAsync("FileOpProgress", FileOpCurrent, FileOpMax, FileOpVerb);
 			}
 		}
+	}
 
-		public void Dispose() => _cts.Dispose();
+		public void Dispose() {
+			_orchestrator.Dispose();
+			_cts.Dispose();
+		}
 	}
 }

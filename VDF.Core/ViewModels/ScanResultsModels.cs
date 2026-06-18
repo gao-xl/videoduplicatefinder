@@ -10,25 +10,40 @@
 //     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //     GNU Affero General Public License for more details.
 //     You should have received a copy of the GNU Affero General Public License
-//     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
+//     along with VideoDuplicateFinder.  If not, see <https://www.gnu.org/licenses/>.
 // */
-//
 
 using System.Text.Json.Serialization;
-using VDF.GUI.ViewModels;
 
-namespace VDF.GUI.Data {
+namespace VDF.Core.ViewModels {
+
 	/// <summary>
-	/// Versioned envelope for the scan.json entry inside backup.scanresults / *.zip.
-	/// Older builds wrote the raw <see cref="List{DuplicateItemVM}"/> at the document
-	/// root; the import path still accepts that legacy shape.
+	/// One duplicate result row with optional UI selection state and thumbnail pack key.
+	/// Serializes with <c>itemInfo</c> for wire compatibility with legacy GUI backups.
+	/// </summary>
+	public sealed class ScanResultEntry {
+		[JsonPropertyName("itemInfo")]
+		public DuplicateItem Item { get; set; } = null!;
+
+		[JsonPropertyName("checked")]
+		public bool Checked { get; set; }
+
+		[JsonPropertyName("thumbnailKey")]
+		public string? ThumbnailKey { get; set; }
+	}
+
+	/// <summary>
+	/// Versioned envelope for scan result persistence (JSON or ZIP scan.json entry).
+	/// Older builds wrote a raw <see cref="List{ScanResultEntry}"/> at the document root;
+	/// <see cref="ResultsStore"/> still accepts that legacy shape.
 	/// </summary>
 	public sealed class ScanResultsEnvelope {
 		public const int CurrentVersion = 1;
 
 		[JsonPropertyName("version")]
 		public int Version { get; set; } = CurrentVersion;
+
 		[JsonPropertyName("items")]
-		public List<DuplicateItemVM> Items { get; set; } = new();
+		public List<ScanResultEntry> Items { get; set; } = new();
 	}
 }

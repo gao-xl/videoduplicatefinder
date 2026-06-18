@@ -159,6 +159,14 @@ namespace VDF.Core {
 		public int DatabaseCheckpointIntervalMinutes = 5;
 
 		/// <summary>
+		/// Test-only field used by SettingsTests to verify that new public fields on
+		/// <see cref="Settings"/> are automatically serialized by the composition-based
+		/// GUI/Web settings files without any manual sync code.  Not read by any
+		/// production logic.
+		/// </summary>
+		public string TestAutoSerializeField = string.Empty;
+
+		/// <summary>
 		/// Returns the allowed duration tolerance in seconds for a video of the given duration,
 		/// based on <see cref="PercentDurationDifference"/>, <see cref="DurationDifferenceMinSeconds"/>,
 		/// and <see cref="DurationDifferenceMaxSeconds"/>. When the percent rule is disabled (0%),

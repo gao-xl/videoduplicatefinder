@@ -32,7 +32,6 @@ namespace VDF.CLI.Commands {
 					return;
 				}
 
-				ScanRunner.WireProgress(engine);
 				await ScanRunner.RunSearchAsync(engine, ct);
 				Console.Error.WriteLine("Scan complete. Run 'compare' to find duplicates.");
 			});

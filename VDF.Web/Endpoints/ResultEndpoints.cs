@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Text;
+using VDF.Core.Utils;
 using VDF.Core.ViewModels;
 using VDF.Web.Models;
 using VDF.Web.Services;
@@ -108,32 +108,7 @@ static class ResultEndpoints {
 
 		// GET /api/results/export/csv — export results as CSV
 		group.MapGet("/export/csv", (ScanService scan) => {
-			static string Escape(string? s) {
-				s ??= string.Empty;
-				return s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r')
-					? "\"" + s.Replace("\"", "\"\"") + "\""
-					: s;
-			}
-			var inv = CultureInfo.InvariantCulture;
-			var sb = new StringBuilder();
-			sb.AppendLine("GroupId,Path,SizeBytes,Duration,Resolution,Fps,BitrateKbs,AudioFormat,AudioSampleRate,Similarity,DateCreated,IsImage");
-			foreach (var g in scan.Duplicates.GroupBy(i => i.GroupId))
-				foreach (var item in g)
-					sb.AppendLine(string.Join(',',
-						item.GroupId.ToString(),
-						Escape(item.Path),
-						item.SizeLong.ToString(inv),
-						item.Duration.ToString(null, inv),
-						Escape(item.FrameSize),
-						item.Fps.ToString(inv),
-						item.BitRateKbs.ToString(inv),
-						Escape(item.AudioFormat),
-						item.AudioSampleRate.ToString(inv),
-						item.Similarity.ToString(inv),
-						item.DateCreated.ToString("yyyy-MM-dd HH:mm:ss", inv),
-						item.IsImage.ToString()));
-			var utf8 = Encoding.UTF8;
-			byte[] bytes = [.. utf8.GetPreamble(), .. utf8.GetBytes(sb.ToString())];
+			var bytes = VDF.Core.Utils.ResultsCsvExporter.ExportToUtf8Bom(scan.Duplicates, includeCheckedColumn: false);
 			return Results.File(bytes, "text/csv", "vdf-results.csv");
 		});
 
@@ -175,21 +150,8 @@ static class ResultEndpoints {
 			if (groupItems.Count == 0)
 				return Results.NotFound(new { error = "group_not_found" });
 
-			// Use QualityRanker to find the best item
-			var criteria = new List<VDF.Core.Utils.QualityRanker.Criterion<DuplicateItem>> {
-				new("FrameSizeInt", d => d.FrameSizeInt, videoOnly: true),
-				new("BitRateKbs", d => d.BitRateKbs, videoOnly: true),
-				new("AudioBitRateKbs", d => d.AudioBitRateKbs, videoOnly: false),
-				new("AudioSampleRate", d => d.AudioSampleRate, videoOnly: false),
-				new("Duration", d => d.Duration, videoOnly: false),
-				new("Fps", d => d.Fps, videoOnly: true),
-				new("HdrFormatRank", d => d.HdrFormatRank, videoOnly: true),
-				new("SizeLong", d => d.SizeLong, videoOnly: false, ascending: true),
-			};
-			var keeper = VDF.Core.Utils.QualityRanker.PickKeeper(
-				groupItems, criteria, d => d.IsImage);
-
-			var toSelect = groupItems.Where(d => d != keeper).ToList();
+			var keeper = VDF.Core.Utils.QualityCriteria.PickKeeper(groupItems);
+			var toSelect = groupItems.Where(d => d.Path != keeper.Path).ToList();
 			return Results.Ok(new {
 				keeperPath = keeper.Path,
 				selectedPaths = toSelect.Select(i => i.Path).ToList(),

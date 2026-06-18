@@ -38,10 +38,9 @@ namespace VDF.CLI.Commands {
 				// 'compare' has no --include option; without this, the empty include list
 				// would make the inclusion filter skip every database entry (0 results, #790).
 				if (engine.Settings.IncludeList.Count == 0)
-					engine.Settings.ScanAgainstEntireDatabase = true;
-				ScanRunner.WireProgress(engine);
+				engine.Settings.ScanAgainstEntireDatabase = true;
 
-				var duplicates = await ScanRunner.RunCompareAsync(engine, ct);
+			var duplicates = await ScanRunner.RunCompareAsync(engine, ct);
 
 				var format = Enum.TryParse<OutputFormat>(parseResult.GetValue(SharedOptions.Format), true, out var fmt) ? fmt : OutputFormat.Text;
 				var outFile = parseResult.GetValue(SharedOptions.Output);

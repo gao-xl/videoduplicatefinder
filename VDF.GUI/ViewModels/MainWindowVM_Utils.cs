@@ -21,28 +21,11 @@ using VDF.Core.Utils;
 namespace VDF.GUI.ViewModels {
 	public partial class MainWindowVM : ReactiveObject {
 
-		internal static readonly Dictionary<string, QualityRanker.Criterion<DuplicateItemVM>> QualityCriteriaMap = new() {
-			["Duration"] = new("Duration", d => d.ItemInfo.Duration, videoOnly: true),
-			["Resolution"] = new("Resolution", d => d.ItemInfo.FrameSizeInt, videoOnly: false),
-			["FPS"] = new("FPS", d => d.ItemInfo.Fps, videoOnly: true),
-			["Bitrate"] = new("Bitrate", d => d.ItemInfo.BitRateKbs, videoOnly: true),
-			["Audio Bitrate"] = new("Audio Bitrate", d => d.ItemInfo.AudioSampleRate, videoOnly: true),
-			["Size"] = new("Size", d => d.ItemInfo.SizeLong, videoOnly: false, ascending: true),
-		};
+		static QualityRanker.Criterion<DuplicateItemVM> ToVmCriterion(QualityRanker.Criterion<VDF.Core.ViewModels.DuplicateItem> c) =>
+			new(c.Name, vm => c.Accessor(vm.ItemInfo), c.VideoOnly, c.Ascending);
 
-		// Yields criteria in the user's chosen order, then appends any map entries the
-		// user's saved list doesn't include. This lets newly added criteria (e.g. Size)
-		// take effect as a final tiebreaker for users with pre-existing settings,
-		// without overwriting their explicit ordering.
-		static IEnumerable<QualityRanker.Criterion<DuplicateItemVM>> ResolveCriteria(IEnumerable<string> names) {
-			var seen = new HashSet<string>();
-			foreach (var name in names)
-				if (QualityCriteriaMap.TryGetValue(name, out var c) && seen.Add(name))
-					yield return c;
-			foreach (var kv in QualityCriteriaMap)
-				if (!seen.Contains(kv.Key))
-					yield return kv.Value;
-		}
+		static IEnumerable<QualityRanker.Criterion<DuplicateItemVM>> ResolveCriteria(IEnumerable<string> names) =>
+			QualityCriteria.Resolve(names).Select(ToVmCriterion);
 	}
 
 	sealed class ReferenceEqualityComparer<T> : IEqualityComparer<T> where T : class {

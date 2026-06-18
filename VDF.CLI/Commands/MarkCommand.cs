@@ -17,6 +17,7 @@
 using System.CommandLine;
 using System.Text.Json;
 using VDF.CLI.Actions;
+using VDF.Core.Services;
 using VDF.Core.ViewModels;
 
 namespace VDF.CLI.Commands {
@@ -94,94 +95,37 @@ namespace VDF.CLI.Commands {
 				return;
 			}
 
-			if (!dryRun) {
-				Console.Error.WriteLine();
-				Console.Error.WriteLine("WARNING: Automatic deletion is not recommended.");
-				Console.Error.WriteLine($"         {marked.Count} file(s) will be {(permanent ? "permanently deleted" : "moved to trash")}.");
-				Console.Error.WriteLine("         This action cannot be undone. Proceeding in 3 seconds... (Ctrl+C to abort)");
-				await Task.Delay(3000);
-			}
-
-			int deleted = 0, failed = 0;
-			foreach (var item in marked) {
-				if (dryRun) {
+			if (dryRun) {
+				foreach (var item in marked)
 					Console.WriteLine($"[dry-run] would delete: {item.Path}");
-					continue;
-				}
-
-				try {
-					if (permanent) {
-						File.Delete(item.Path);
-					}
-					else {
-						MoveToTrash(item.Path);
-					}
-					Console.Error.WriteLine($"Deleted: {item.Path}");
-					deleted++;
-				}
-				catch (Exception ex) {
-					Console.Error.WriteLine($"Failed to delete '{item.Path}': {ex.Message}");
-					failed++;
-				}
-			}
-
-			if (!dryRun) {
-				Console.Error.WriteLine($"Done. {deleted} deleted, {failed} failed.");
-			}
-			else {
 				Console.Error.WriteLine($"[dry-run] {marked.Count} file(s) would be deleted. Use --delete or --delete-permanent to proceed.");
+				return;
 			}
-		}
 
-		static void MoveToTrash(string path) {
-			// Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile with recycle option is Windows-only.
-			// For cross-platform trash support we use a best-effort approach.
-			if (OperatingSystem.IsWindows()) {
-				Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
-					path,
-					Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-					Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-			}
-			else if (OperatingSystem.IsLinux()) {
-				// XDG trash specification: move to ~/.local/share/Trash/files/
-				string trashDir = Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-					".local", "share", "Trash", "files");
-				Directory.CreateDirectory(trashDir);
-				// Skip trash for cross-filesystem files (e.g. network shares) to avoid downloading
-				if (!VDF.Core.Utils.FileUtils.IsOnSameFileSystem(path, trashDir)) {
-					File.Delete(path);
-					return;
-				}
-				string dest = Path.Combine(trashDir, Path.GetFileName(path));
-				// Avoid overwriting existing trash entries
-				int n = 1;
-				while (File.Exists(dest))
-					dest = Path.Combine(trashDir, $"{Path.GetFileNameWithoutExtension(path)}_{n++}{Path.GetExtension(path)}");
-				File.Move(path, dest);
-			}
-			else if (OperatingSystem.IsMacOS()) {
-				// macOS: move to ~/.Trash/
-				string trashDir = Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-					".Trash");
-				Directory.CreateDirectory(trashDir);
-				// Skip trash for cross-volume files to avoid cross-volume copy
-				if (!VDF.Core.Utils.FileUtils.IsOnSameFileSystem(path, trashDir)) {
-					File.Delete(path);
-					return;
-				}
-				string dest = Path.Combine(trashDir, Path.GetFileName(path));
-				int n = 1;
-				while (File.Exists(dest))
-					dest = Path.Combine(trashDir, $"{Path.GetFileNameWithoutExtension(path)}_{n++}{Path.GetExtension(path)}");
-				File.Move(path, dest);
-			}
-			else {
-				// Fallback: permanent delete with a warning
-				Console.Error.WriteLine($"Warning: trash not supported on this OS. Permanently deleting: {path}");
-				File.Delete(path);
-			}
+			Console.Error.WriteLine();
+			Console.Error.WriteLine("WARNING: Automatic deletion is not recommended.");
+			Console.Error.WriteLine($"         {marked.Count} file(s) will be {(permanent ? "permanently deleted" : "moved to trash")}.");
+			Console.Error.WriteLine("         This action cannot be undone. Proceeding in 3 seconds... (Ctrl+C to abort)");
+			await Task.Delay(3000);
+
+			// Delegate to the unified Core service. CLI has no ScanEngine, so a
+			// null engine is passed — the service performs file I/O only (Windows
+			// batched SHFileOperation recycle, Linux/macOS trash with permanent-delete
+			// fallback) and the caller owns any database sync.
+			var fileOps = new FileOperationsService(null);
+			var result = await fileOps.DeleteAsync(
+				marked.Select(m => m.Path),
+				!permanent,
+				CancellationToken.None);
+
+			foreach (var err in result.Errors)
+				Console.Error.WriteLine($"Failed: {err}");
+			foreach (var warn in result.Warnings)
+				Console.Error.WriteLine($"Warning: {warn}");
+			foreach (var path in result.SucceededPaths)
+				Console.Error.WriteLine($"Deleted: {path}");
+
+			Console.Error.WriteLine($"Done. {result.Done} deleted, {result.Failed} failed.");
 		}
 
 	}

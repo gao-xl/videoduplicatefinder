@@ -41,21 +41,7 @@ static class SseEndpoints {
 				while (!cts.Token.IsCancellationRequested) {
 					// Send periodic progress updates
 					if (scan.LastProgress != null) {
-						var p = scan.LastProgress;
-						var progress = JsonSerializer.Serialize(new ScanProgressResponse {
-							State = scan.State.ToString(),
-							FilesHashed = scan.FilesHashed,
-							CurrentFile = p.CurrentFile,
-							Current = p.Current,
-							Max = p.Max,
-							ElapsedSeconds = p.Elapsed.TotalSeconds,
-							RemainingSeconds = p.Remaining.TotalSeconds,
-							CurrentStage = p.CurrentStage,
-							StageCurrent = p.StageCurrent,
-							StageMax = p.StageMax,
-							ErrorMessage = scan.ErrorMessage,
-							CurrentThumbnailPath = p.CurrentThumbnailPath,
-						});
+						var progress = JsonSerializer.Serialize(scan.BuildProgressResponse());
 						await SendEvent(ctx, "progress", progress, cts.Token);
 					}
 

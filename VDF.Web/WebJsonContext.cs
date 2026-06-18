@@ -15,11 +15,13 @@
 //
 
 using System.Text.Json.Serialization;
+using VDF.Core;
 using VDF.Web.Services;
 
 namespace VDF.Web {
-	[JsonSourceGenerationOptions(WriteIndented = true)]
+	[JsonSourceGenerationOptions(WriteIndented = true, IncludeFields = true)]
 	[JsonSerializable(typeof(WebSettingsService.Dto))]
+	[JsonSerializable(typeof(Settings))]
 	[JsonSerializable(typeof(AuthService.StoredCredentials))]
 	[JsonSerializable(typeof(JwtService.StoredSigningKey))]
 	internal sealed partial class WebJsonContext : JsonSerializerContext { }

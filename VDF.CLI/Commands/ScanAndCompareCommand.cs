@@ -53,13 +53,11 @@ namespace VDF.CLI.Commands {
 				SharedOptions.ApplyToSettings(engine.Settings, parseResult);
 
 				if (engine.Settings.IncludeList.Count == 0) {
-					Console.Error.WriteLine("Error: at least one --include path is required.");
-					return;
-				}
+				Console.Error.WriteLine("Error: at least one --include path is required.");
+				return;
+			}
 
-				ScanRunner.WireProgress(engine);
-
-				var duplicates = await ScanRunner.RunScanAndCompareAsync(engine, ct);
+			var duplicates = await ScanRunner.RunScanAndCompareAsync(engine, ct);
 
 				var format = Enum.TryParse<OutputFormat>(parseResult.GetValue(SharedOptions.Format), true, out var fmt) ? fmt : OutputFormat.Text;
 				var outFile = parseResult.GetValue(SharedOptions.Output);

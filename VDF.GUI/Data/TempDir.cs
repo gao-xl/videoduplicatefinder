@@ -37,7 +37,11 @@ namespace VDF.GUI.Data {
 		public string Path { get; }
 		bool _deleted;
 
-		public TempDir(string? prefix = null) {
+		public TempDir(string? prefix = null, bool wrapExisting = false) {
+			if (wrapExisting) {
+				Path = prefix!;
+				return;
+			}
 			string customTempDirectory = Environment.GetEnvironmentVariable("VDF_TMP_DIR") ?? string.Empty;
 			if (!string.IsNullOrWhiteSpace(customTempDirectory)) {
 				try {

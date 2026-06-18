@@ -32,7 +32,18 @@ namespace VDF.Core.Utils {
 	[JsonSerializable(typeof(BlacklistStore.Envelope))]
 	[JsonSerializable(typeof(List<HashSet<string>>))]
 	[JsonSerializable(typeof(HashSet<DuplicateItem>))]
+	[JsonSerializable(typeof(Dictionary<string, ValueTuple<long, int>>), TypeInfoPropertyName = "ThumbPackIndex")]
+	[JsonSerializable(typeof(ScanResultsEnvelope))]
+	[JsonSerializable(typeof(ScanResultEntry))]
+	[JsonSerializable(typeof(List<ScanResultEntry>))]
+	[JsonSerializable(typeof(DuplicateItem))]
+	[JsonSerializable(typeof(List<DuplicateItem>))]
 	public partial class CoreJsonContext : JsonSerializerContext { }
+
+	/// <summary>WriteIndented twin for scan-results exports.</summary>
+	[JsonSourceGenerationOptions(IncludeFields = true, PropertyNameCaseInsensitive = true, WriteIndented = true)]
+	[JsonSerializable(typeof(ScanResultsEnvelope))]
+	public partial class CoreJsonPrettyResultsContext : JsonSerializerContext { }
 
 	/// <summary>WriteIndented twin of <see cref="CoreJsonContext"/> for pretty database exports.</summary>
 	[JsonSourceGenerationOptions(IncludeFields = true, PropertyNameCaseInsensitive = true, WriteIndented = true)]

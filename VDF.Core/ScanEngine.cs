@@ -53,6 +53,7 @@ namespace VDF.Core {
 		PathMatcher? _includeMatcher;
 		readonly List<float> positionList = new();
 		FileEnumerator? _fileEnumerator;
+		MediaAnalyzer? _mediaAnalyzer;
 
 		bool isScanning;
 		int scanProgressMaxValue;
@@ -333,37 +334,8 @@ namespace VDF.Core {
 			isScanning = false;
 		}
 
-		/// <summary>
-		/// Determines whether a path is likely a network path (SMB/NFS share).
-		/// On Windows: UNC paths (\\server\share) or drive letters mapped to network shares.
-		/// On Linux/macOS: paths starting with /mnt/, /media/, /srv/, or NFS mounts.
-		/// </summary>
-		static bool IsNetworkPath(string path) {
-			if (string.IsNullOrEmpty(path)) return false;
-			if (CoreUtils.IsWindows) {
-				// UNC path: \\server\share
-				if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
-					return true;
-				// Check if a drive root is a network drive (e.g. Z:\)
-				if (path.Length >= 2 && path[1] == ':') {
-					try {
-						var driveRoot = path.Substring(0, 2) + Path.DirectorySeparatorChar;
-						var driveInfo = new DriveInfo(driveRoot);
-						if (driveInfo.DriveType == DriveType.Network)
-							return true;
-					}
-					catch { }
-				}
-				return false;
-			}
-			// Linux/macOS heuristics
-			if (path.StartsWith("/mnt/", StringComparison.OrdinalIgnoreCase) ||
-				path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ||
-				path.StartsWith("/srv/", StringComparison.OrdinalIgnoreCase) ||
-				path.StartsWith("/nas/", StringComparison.OrdinalIgnoreCase))
-				return true;
-			return false;
-		}
+		/// <summary>Determines whether a path is likely a network path — delegates to FileEnumerator.</summary>
+	static bool IsNetworkPath(string path) => FileEnumerator.IsNetworkPath(path);
 
 		async Task BuildFileList(CancellationToken cancellationToken) {
 			_fileEnumerator ??= new FileEnumerator(Settings);
@@ -507,30 +479,9 @@ namespace VDF.Core {
 #pragma warning restore CS8601 // Possible null reference assignment
 		public static void BlackListFileEntry(string filePath) => DatabaseUtils.BlacklistFileEntry(filePath);
 
-		// Returns true if folderPath is covered by blacklistEntry.
-		// Supports wildcard patterns (*, ?) in blacklistEntry — see https://github.com/0x90d/videoduplicatefinder/issues/582
-		static bool IsBlackListed(string folderPath, string blacklistEntry) {
-			bool hasWildcard = blacklistEntry.IndexOfAny(['*', '?']) >= 0;
-			if (!hasWildcard) {
-				if (!folderPath.StartsWith(blacklistEntry, StringComparison.OrdinalIgnoreCase))
-					return false;
-				if (folderPath.Length == blacklistEntry.Length)
-					return true;
-				//Reason: https://github.com/0x90d/videoduplicatefinder/issues/249
-				string relativePath = Path.GetRelativePath(blacklistEntry, folderPath);
-				return !relativePath.StartsWith('.') && !Path.IsPathRooted(relativePath);
-			}
-			// Wildcard pattern without path separators: match against each individual segment of folderPath
-			bool hasSeparator = blacklistEntry.Contains(Path.DirectorySeparatorChar) ||
-			                    blacklistEntry.Contains(Path.AltDirectorySeparatorChar);
-			if (!hasSeparator) {
-				string[] segments = folderPath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-					StringSplitOptions.RemoveEmptyEntries);
-				return segments.Any(s => System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(blacklistEntry, s));
-			}
-			// Wildcard pattern with path separators: match against the full path
-			return System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(blacklistEntry, folderPath);
-		}
+		// Returns true if folderPath is covered by blacklistEntry — delegates to FileEnumerator.
+		static bool IsBlackListed(string folderPath, string blacklistEntry) =>
+			FileEnumerator.IsBlackListed(folderPath, blacklistEntry);
 
 		async Task GatherInfos() {
 			try {
@@ -589,90 +540,14 @@ namespace VDF.Core {
 						// Ensure heavy fields are loaded before accessing grayBytes/mediaInfo
 						DatabaseUtils.EnsureHeavyFieldsLoaded(entry);
 
-						if (Settings.IncludeNonExistingFiles && entry.grayBytes?.Count > 0) {
-							bool hasAllInformation = entry.IsImage;
-							if (!hasAllInformation) {
-								hasAllInformation = true;
-								for (int i = 0; i < positionList.Count; i++) {
-									if (entry.grayBytes.ContainsKey(GetGrayBytesIndex(entry, positionList[i])))
-										continue;
-									hasAllInformation = false;
-									break;
-								}
-							}
-							if (hasAllInformation) {
-								// Thumbnails are cached but audio fingerprint might still be needed
-								if (Settings.EnablePartialClipDetection &&
-									!entry.IsImage &&
-									!entry.Flags.Has(EntryFlags.NoAudioTrack) &&
-									!entry.Flags.Has(EntryFlags.AudioFingerprintError) &&
-									!entry.Flags.Has(EntryFlags.SilentAudioTrack) &&
-									entry.AudioFingerprint == null) {
-									string cachedAudioPath = entry.Path;
-									string audioStageLabel = T("Scan.Stage.AudioFingerprint");
-									ReportStage(cachedAudioPath, audioStageLabel);
-									ExtractAudioFingerprint(entry, cancelationTokenSource.Token,
-										onProgress: p => ReportStage(cachedAudioPath, audioStageLabel, (int)(p * 100), 100));
-								}
-								IncrementProgress(entry.Path);
-								return ValueTask.CompletedTask;
-							}
-						}
+						_mediaAnalyzer ??= new MediaAnalyzer(Settings, positionList);
+						bool valid = _mediaAnalyzer.GatherInfo(entry,
+							(path, stage, current, max) => ReportStage(path, stage, current, max),
+							cancelationTokenSource.Token);
 
-						if (entry.mediaInfo == null && !entry.IsImage) {
-							ReportStage(entry.Path, T("Scan.Stage.Probing"));
-							MediaInfo? info = FFProbeEngine.GetMediaInfo(entry.Path, Settings.ExtendedFFToolsLogging);
-							if (info == null) {
-								entry.invalid = true;
-								entry.Flags.Set(EntryFlags.MetadataError);
-								entry.dirty = true;
-								IncrementProgress(entry.Path);
-								return ValueTask.CompletedTask;
-							}
-
-							entry.mediaInfo = info;
-							entry.dirty = true;
-						}
-						// This is for people upgrading from an older VDF version
-						// Or if you create a new database, start and immediately stop the scan and then try to scan again
-						entry.grayBytes ??= new ConcurrentDictionary<double, byte[]?>();
-						entry.PHashes ??= new ConcurrentDictionary<double, ulong?>();
-
-
-						if (entry.IsImage && entry.grayBytes.Count == 0) {
-							if (!GetGrayBytesFromImage(entry, Settings.UseExifCreationDate, Settings.ExtendedFFToolsLogging)) {
-								entry.invalid = true;
-								entry.dirty = true;
-							}
-							else {
-								entry.dirty = true;
-							}
-						}
-						else if (!entry.IsImage) {
-							string entryPath = entry.Path;
-							int totalSamples = positionList.Count;
-							string samplingLabel = T("Scan.Stage.SamplingFrames");
-							if (!FfmpegEngine.GetGrayBytesFromVideo(entry, positionList, Settings.MaxSamplingDurationSeconds,
-									Settings.ExtendedFFToolsLogging,
-									onSampleComplete: (done) => ReportStage(entryPath, samplingLabel, done, totalSamples))) {
-								entry.invalid = true;
-								entry.dirty = true;
-							}
-						}
-
-						// Audio fingerprint — videos only, only when enabled,
-						// skipped if already cached or flagged as having no audio track.
-						if (Settings.EnablePartialClipDetection &&
-							!entry.IsImage &&
-							!entry.Flags.Has(EntryFlags.NoAudioTrack) &&
-							!entry.Flags.Has(EntryFlags.AudioFingerprintError) &&
-							!entry.Flags.Has(EntryFlags.SilentAudioTrack) &&
-							entry.AudioFingerprint == null) {
-							string audioPath = entry.Path;
-							string audioLabel = T("Scan.Stage.AudioFingerprint");
-							ReportStage(audioPath, audioLabel);
-							ExtractAudioFingerprint(entry, cancelationTokenSource.Token,
-								onProgress: p => ReportStage(audioPath, audioLabel, (int)(p * 100), 100));
+						if (!valid) {
+							IncrementProgress(entry.Path);
+							return ValueTask.CompletedTask;
 						}
 
 						IncrementProgress(entry.Path);
@@ -701,45 +576,17 @@ namespace VDF.Core {
 		}
 
 	
+	/// <summary>
+	/// Extracts audio fingerprint from a file entry — delegates to MediaAnalyzer.
+	/// </summary>
 	static void ExtractAudioFingerprint(FileEntry entry, CancellationToken ct = default, Action<double>? onProgress = null) {
-		uint[]? fp = FFTools.ChromaprintEngine.ExtractFingerprint(entry.Path, false, ct, onProgress);
-		if (fp == null) {
-			// null = extraction failed (error or no audio stream)
-			entry.Flags.Set(EntryFlags.AudioFingerprintError);
-			entry.AudioFingerprint = Array.Empty<uint>();
-			entry.dirty = true;
-		}
-		else if (fp.Length == 0) {
-			// FFmpeg ran but produced no samples (file has no usable audio)
-			entry.Flags.Set(EntryFlags.NoAudioTrack);
-			entry.AudioFingerprint = Array.Empty<uint>();
-			entry.dirty = true;
-		}
-		else if (IsSilentFingerprint(fp)) {
-			// Silent tracks produce all-zero fingerprints, which Hamming-match any
-			// other silent track at 100% and cause false-positive partial-clip groups.
-			entry.Flags.Set(EntryFlags.SilentAudioTrack);
-			entry.AudioFingerprint = Array.Empty<uint>();
-			entry.dirty = true;
-		}
-		else {
-			entry.AudioFingerprint = fp;
-			entry.dirty = true;
-		}
+		MediaAnalyzer.ExtractAudioFingerprint(entry, ct, onProgress);
 	}
 
 	/// <summary>
-	/// Returns true when every block in the fingerprint is zero. For silent or
-	/// near-silent audio the chroma bins collapse to equal values, and the 32
-	/// comparison pairs in <see cref="Chromaprint.Pipeline.FingerprintCalculator"/>
-	/// all resolve to the non-greater branch, producing uniformly zero blocks.
+	/// Returns true when every block in the fingerprint is zero — delegates to MediaAnalyzer.
 	/// </summary>
-	internal static bool IsSilentFingerprint(uint[] fp) {
-		if (fp.Length == 0) return false;
-		for (int i = 0; i < fp.Length; i++)
-			if (fp[i] != 0u) return false;
-		return true;
-	}
+	internal static bool IsSilentFingerprint(uint[] fp) => MediaAnalyzer.IsSilentFingerprint(fp);
 
 	static byte[]?[] CreateFlippedGrayBytes(FileEntry entry, ConcurrentBag<byte[]> rentedBuffers) {
 			byte[]?[] source = entry.compareGray!;
@@ -2263,14 +2110,7 @@ namespace VDF.Core {
 		}
 
 		static bool IsImageExtension(string ext) =>
-			ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".bmp", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".gif", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".webp", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".tiff", StringComparison.OrdinalIgnoreCase) ||
-			ext.Equals(".tif", StringComparison.OrdinalIgnoreCase);
+			FileUtils.ImageExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Whether an item should be (re)processed for thumbnails. Items with no thumbnails
@@ -2463,70 +2303,8 @@ namespace VDF.Core {
 			ThumbnailsRetrieved?.Invoke(this, new EventArgs());
 		}
 
-		static bool GetGrayBytesFromImage(FileEntry imageFile, bool useExifIfAvailable, bool extendedLogging) {
-			try {
-				// Decode through FFmpeg — the same pipeline videos use — so image and video
-				// gray bytes share identical grayscale conversion and scaling.
-				byte[]? grayBytes;
-				int width, height;
-				if (!FfmpegEngine.TryGetImageInfoAndGrayBytes(imageFile.Path, out grayBytes, out width, out height, extendedLogging)) {
-					// CLI fallback: dimensions via ffprobe, gray bytes via an FFmpeg process.
-					MediaInfo? info = FFProbeEngine.GetMediaInfo(imageFile.Path, extendedLogging);
-					var stream = info?.Streams?.FirstOrDefault(s => s.Width > 0 && s.Height > 0);
-					width = stream?.Width ?? 0;
-					height = stream?.Height ?? 0;
-					grayBytes = FfmpegEngine.GetThumbnail(new FfmpegSettings {
-						File = imageFile.Path,
-						Position = TimeSpan.Zero,
-						GrayScale = 1,
-						SoftwareDecodeOnly = true,
-					}, extendedLogging);
-				}
-
-				if (grayBytes == null) {
-					imageFile.Flags.Set(EntryFlags.ThumbnailError);
-					return false;
-				}
-
-				imageFile.mediaInfo = new MediaInfo {
-					Streams = new[] {
-							new MediaInfo.StreamInfo {Height = height, Width = width}
-						}
-				};
-
-				// Extract EXIF capture date if enabled
-				if (useExifIfAvailable) {
-					if (ExifReader.TryGetDateTaken(imageFile.Path, out DateTime exifDate)) {
-						imageFile.DateCreated = exifDate;
-					}
-					else {
-						// HEIC/HEIF carry the date in the container instead; read it via FFprobe.
-						string ext = Path.GetExtension(imageFile.Path);
-						if (ext.Equals(".heic", StringComparison.OrdinalIgnoreCase) ||
-							ext.Equals(".heif", StringComparison.OrdinalIgnoreCase)) {
-							var creationTime = FFProbeEngine.GetCreationTime(imageFile.Path);
-							if (creationTime.HasValue)
-								imageFile.DateCreated = creationTime.Value;
-						}
-					}
-				}
-
-				if (!GrayBytesUtils.VerifyGrayScaleValues(grayBytes)) {
-					imageFile.Flags.Set(EntryFlags.TooDark);
-					Logger.Instance.Info($"ERROR: Graybytes too dark of: {imageFile.Path}");
-					return false;
-				}
-
-				imageFile.grayBytes.TryAdd(0, grayBytes);
-				return true;
-			}
-			catch (Exception ex) {
-				Logger.Instance.Info(
-					$"Exception, file: {imageFile.Path}, reason: {ex.Message}, stacktrace {ex.StackTrace}");
-				imageFile.Flags.Set(EntryFlags.ThumbnailError);
-				return false;
-			}
-		}
+		static bool GetGrayBytesFromImage(FileEntry imageFile, bool useExifIfAvailable, bool extendedLogging) =>
+			MediaAnalyzer.GetGrayBytesFromImage(imageFile, useExifIfAvailable, extendedLogging);
 
 		internal void HighlightBestMatches() {
 			// One pass per group: find the best value per metric and mark every item

@@ -12,31 +12,34 @@
 //     You should have received a copy of the GNU Affero General Public License
 //     along with VideoDuplicateFinder.  If not, see <https://www.gnu.org/licenses/>.
 // */
-//
 
 using System;
-using System.Collections.Generic;
-using System.IO.Compression;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using Avalonia.Controls;
-using Avalonia.Media;
-using DynamicData;
-using VDF.GUI.Utils;
+using System.IO;
+using VDF.Core.Services;
 
 namespace VDF.GUI.Utils {
+	/// <summary>
+	/// Thin GUI wrapper around <see cref="ThumbnailService"/>. Provides:
+	///  - Static <see cref="Provider"/> access for VMs (backward compat with the previous ThumbPack-based API)
+	///  - <see cref="LRUBitmapCache"/>: Avalonia Bitmap conversion layer on top of Core's byte[] LRU
+	///  - Pack-folder management helpers (<see cref="InvalidateIfWidthChanged"/>, <see cref="DeletePackFolder"/>)
+	///  - Backup/restore integration (the Core pack file is packed/unpacked by GUI's zip code)
+	///
+	/// The pack persistence, byte[] LRU, and on-demand extraction logic live in
+	/// <see cref="ThumbnailService"/> (VDF.Core). This wrapper only adds GUI-specific
+	/// concerns: Bitmap conversion and temp-folder lifecycle.
+	/// </summary>
 	internal static class ThumbCacheHelpers {
-		public static ThumbPack? Provider { get; set; }
-		public static string XxHash64Hex(string s) {
-			ReadOnlySpan<byte> bytes = MemoryMarshal.AsBytes(s.AsSpan());
-			byte[] hash = System.IO.Hashing.XxHash64.Hash(bytes);
-			return Convert.ToHexStringLower(hash);
-		}
+		/// <summary>
+		/// The active <see cref="ThumbnailService"/>, or null when no pack is open.
+		/// GUI VMs access this to call <see cref="ThumbnailService.AppendIfMissing"/>,
+		/// <see cref="ThumbnailService.OpenKey"/>, <see cref="ThumbnailService.FlushIndex"/>, etc.
+		/// </summary>
+		public static ThumbnailService? Provider { get; set; }
+
+		/// <summary>XxHash64 of a string, returned as lowercase hex. Delegates to Core.</summary>
+		public static string XxHash64Hex(string s) => ThumbnailService.XxHash64Hex(s);
+
 		public static void DeletePackFolder(string? folder) {
 			try {
 				if (Directory.Exists(folder))
@@ -52,7 +55,7 @@ namespace VDF.GUI.Utils {
 		}
 
 		/// <summary>
-		/// Deletes the ThumbPack if the thumbnail width setting changed since the cache was created.
+		/// Deletes the pack if the thumbnail width setting changed since the cache was created.
 		/// Stores the current width in a marker file alongside the pack.
 		/// </summary>
 		public static void InvalidateIfWidthChanged(string packFolder, int currentWidth) {
@@ -71,187 +74,25 @@ namespace VDF.GUI.Utils {
 			catch { /* ignore */ }
 		}
 
-		public static void SetActiveProvider(ThumbPack? provider) {
-			var path = Provider?.GetDirectory();
+		/// <summary>
+		/// Disposes the current provider, deletes its pack folder, and opens a new
+		/// <see cref="ThumbnailService"/> for <paramref name="packFolder"/> using the
+		/// given <paramref name="engine"/> (for on-demand extraction).
+		/// </summary>
+		public static void SetActiveProvider(VDF.Core.ScanEngine engine, string packFolder) {
+			var oldFolder = Provider?.PackFolder;
 			try { Provider?.Dispose(); } catch { }
-			DeletePackFolder(path);
+			DeletePackFolder(oldFolder);
 
-			Provider = provider;
+			Provider = new ThumbnailService(engine, new ThumbnailServiceOptions { PackFolder = packFolder });
 		}
 	}
 
 	/// <summary>
-	/// A large, append-only thumbnail cache:
-	///  - thumbs.pack : Binary data (JPEGs in sequence)
-	///  - thumbs.idx  : JSON { key -> (offset,length) }
+	/// Small, size-limited LRU cache for UI bitmaps (RAM capped). Sits on top of Core's
+	/// byte[] LRU as the Bitmap conversion layer: the Core service returns byte[] JPEGs,
+	/// and this cache avoids re-decoding the same JPEG to an Avalonia Bitmap on every access.
 	/// </summary>
-	public sealed class ThumbPack  {
-		readonly FileStream _fs;
-		readonly string _packPath;
-		readonly string _idxPath;
-		readonly Dictionary<string, (long off, int len)> _idx;
-		readonly object _gate = new();
-		public readonly string Folder;
-
-		private ThumbPack(FileStream fs, string idxPath, Dictionary<string, (long, int)> idx, string packPath, string folder) {
-			_fs = fs; _idxPath = idxPath; _idx = idx; Folder = folder; _packPath = packPath;
-		}
-
-		public static ThumbPack Open(string folder) {
-
-			Directory.CreateDirectory(folder);
-			string packPath = System.IO.Path.Combine(folder, "thumbs.pack");
-			string idxPath = System.IO.Path.Combine(folder, "thumbs.idx");
-			var fs = new FileStream(packPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-			Dictionary<string, (long, int)> idx = File.Exists(idxPath)
-							? System.Text.Json.JsonSerializer.Deserialize(
-			File.ReadAllBytes(idxPath), Data.GuiJsonFieldsContext.Default.ThumbPackIndex) ?? new()
-							: new();
-			return new ThumbPack(fs, idxPath, idx, packPath, folder);
-		}
-
-		public bool Contains(string key) {
-			lock (_gate) return _idx.ContainsKey(key);
-		}
-
-		/// <summary>
-		/// Inserts JPEG from src into the pack (if key does not exist OR existing entry
-		/// is zero-length — see below). Returns with (offset, length).
-		///
-		/// Zero-length entries are treated as "missing" for two reasons (issue #751):
-		///  - A 0-byte write means the producer (e.g. JoinImages) failed to write a JPEG.
-		///    Recording a (off, 0) entry would mean the next OpenKey returns an empty slice,
-		///    Bitmap construction throws, the UI shows blank, AND the per-path key is
-		///    permanently latched, so explicit "Load thumbnails for group" would no-op
-		///    forever.
-		///  - Lets a corrupted pack from a prior session self-heal: empty entries become
-		///    overwritable, and the next attempt that actually writes bytes wins.
-		/// </summary>
-		public (long off, int len) AppendIfMissing(string key, Action<Stream> writeJpeg) {
-			lock (_gate) {
-				if (_idx.TryGetValue(key, out var e) && e.Item2 > 0) return e;
-				_fs.Seek(0, SeekOrigin.End);
-				long off = _fs.Position;
-				using (var limiting = new LengthCountingStream(_fs)) {
-					writeJpeg(limiting);
-					limiting.Flush();
-					int len = checked((int)limiting.BytesWritten);
-					if (len == 0) {
-						// Don't record an empty entry. Leaving _idx untouched (or unchanged
-						// if a previous empty entry existed) means OpenKey returns null, the
-						// Thumbnail getter sees no key match, and the next retry re-attempts
-						// extraction instead of serving back broken data forever.
-						return (off, 0);
-					}
-					_idx[key] = (off, len);
-					return (off, len);
-				}
-			}
-		}
-
-		public bool TryGetEntry(string key, out long off, out int len) {
-			lock (_gate) {
-				if (_idx.TryGetValue(key, out var e)) { off = e.off; len = e.len; return true; }
-				off = 0; len = 0; return false;
-			}
-		}
-
-		public Stream? OpenKey(string key) {
-			lock (_gate) {
-				if (!_idx.TryGetValue(key, out var e)) return null;
-				var rfs = new FileStream(_packPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 128 * 1024, useAsync: false);
-				return new StreamSlice(rfs, e.off, e.len, leaveOpen: true);
-			}
-		}
-		public void FlushIndex() {
-			lock (_gate) {
-				var json = System.Text.Json.JsonSerializer.Serialize(_idx, Data.GuiJsonFieldsContext.Default.ThumbPackIndex);
-				File.WriteAllText(_idxPath, json);
-			}
-		}
-
-		public void CopyTo(Stream destination) {
-			lock (_gate) {
-				_fs.Flush();
-				_fs.Seek(0, SeekOrigin.Begin);
-				_fs.CopyTo(destination);
-				_fs.Seek(0, SeekOrigin.End);
-			}
-		}
-
-		public void Dispose() { FlushIndex(); _fs.Dispose(); }
-
-		public string? GetDirectory() => Folder;
-	}
-
-	/// <summary> Stream slice without copy (reads range [offset, offsetlength) from shared FileStream). </summary>
-	internal sealed class StreamSlice : Stream {
-		readonly FileStream _fs;
-		readonly long _start;
-		readonly long _len;
-		long _pos;
-		readonly bool _leaveOpen;
-		public StreamSlice(FileStream fs, long start, int len, bool leaveOpen) {
-			_fs = fs; _start = start; _len = len; _pos = 0; _leaveOpen = leaveOpen;
-		}
-		public override bool CanRead => true;
-		public override bool CanSeek => true;
-		public override bool CanWrite => false;
-		public override long Length => _len;
-		public override long Position { get => _pos; set => Seek(value, SeekOrigin.Begin); }
-		public override void Flush() { }
-		public override int Read(byte[] buffer, int offset, int count) {
-			count = (int)Math.Min(count, _len - _pos);
-			if (count <= 0) return 0;
-			lock (_fs) {
-				_fs.Seek(_start + _pos, SeekOrigin.Begin);
-				int n = _fs.Read(buffer, offset, count);
-				_pos += n; return n;
-			}
-		}
-		public override long Seek(long offset, SeekOrigin origin) {
-			long np = origin switch {
-				SeekOrigin.Begin => offset,
-				SeekOrigin.Current => _pos + offset,
-				SeekOrigin.End => _len + offset,
-				_ => _pos
-			};
-			_pos = Math.Max(0, Math.Min(_len, np));
-			return _pos;
-		}
-		public override void SetLength(long value) => throw new NotSupportedException();
-		public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-		protected override void Dispose(bool disposing) { if (!disposing || _leaveOpen) return; try { _fs.Dispose(); } catch { } }
-	}
-
-	internal sealed class LengthCountingStream : Stream {
-		readonly Stream _inner;
-		public long BytesWritten { get; private set; }
-		public LengthCountingStream(Stream inner) => _inner = inner;
-		public override bool CanRead => false; public override bool CanSeek => false; public override bool CanWrite => true;
-		public override long Length => throw new NotSupportedException();
-		public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
-		public override void Flush() => _inner.Flush();
-		public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-		public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-		public override void SetLength(long value) => throw new NotSupportedException();
-		public override void Write(byte[] buffer, int offset, int count) {
-			_inner.Write(buffer, offset, count);
-			BytesWritten += count;
-		}
-
-		public override void Write(ReadOnlySpan<byte> buffer) {
-			_inner.Write(buffer);
-			BytesWritten += buffer.Length;
-		}
-
-		public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default) {
-			BytesWritten += buffer.Length;
-			return _inner.WriteAsync(buffer, ct);
-		}
-	}
-
-	/// <summary> Small, size-limited LRU cache for UI bitmaps (RAM capped). </summary>
 	internal static class LRUBitmapCache {
 		static readonly object gate = new();
 		static readonly LinkedList<string> lru = new();

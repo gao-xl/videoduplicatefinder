@@ -12,91 +12,88 @@
 //     You should have received a copy of the GNU Affero General Public License
 //     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
 // */
-//
 
 using System.Text.Json;
 using VDF.Core;
+using VDF.Core.Services;
 using VDF.Core.ViewModels;
 
 namespace VDF.CLI.Commands {
-	/// <summary>Drives ScanEngine operations and bridges the async-void/event API to awaitable Tasks.</summary>
+	/// <summary>
+	/// Drives scan operations via <see cref="ScanOrchestrator"/> and adapts the
+	/// orchestrator's events to the CLI's awaitable Task + Console.Error progress model.
+	/// </summary>
 	internal static class ScanRunner {
 		/// <summary>Runs StartSearch() then StartCompare() (the full pipeline).</summary>
 		internal static async Task<HashSet<DuplicateItem>> RunScanAndCompareAsync(ScanEngine engine, CancellationToken ct) {
-			await RunSearchAsync(engine, ct);
-			return await RunCompareAsync(engine, ct);
+			using var orchestrator = new ScanOrchestrator(engine);
+			WireProgress(orchestrator);
+			await orchestrator.StartAsync(engine.Settings, ct);
+			if (orchestrator.State == ScanState.Aborted)
+				throw new OperationCanceledException(ct);
+			return engine.Duplicates;
 		}
 
 		/// <summary>Runs StartSearch() only (enumerate files and build hashes).</summary>
 		internal static async Task RunSearchAsync(ScanEngine engine, CancellationToken ct) {
-			var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-			engine.BuildingHashesDone += OnDone;
-			engine.ScanAborted += OnAborted;
-			ct.Register(() => { engine.Stop(); tcs.TrySetCanceled(); });
-
-			await engine.StartSearch();
-			await tcs.Task;
-
-			engine.BuildingHashesDone -= OnDone;
-			engine.ScanAborted -= OnAborted;
-
-			void OnDone(object? s, EventArgs e) => tcs.TrySetResult();
-			void OnAborted(object? s, EventArgs e) => tcs.TrySetCanceled();
+			using var orchestrator = new ScanOrchestrator(engine);
+			WireProgress(orchestrator);
+			await orchestrator.StartAsync(engine.Settings, ct);
+			if (orchestrator.State == ScanState.Aborted)
+				throw new OperationCanceledException(ct);
 		}
 
 		/// <summary>Runs StartCompare() only (assumes database already populated by a prior scan).</summary>
 		internal static async Task<HashSet<DuplicateItem>> RunCompareAsync(ScanEngine engine, CancellationToken ct) {
-			var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-			engine.ScanDone += OnDone;
-			engine.ScanAborted += OnAborted;
-			ct.Register(() => { engine.Stop(); tcs.TrySetCanceled(); });
-
-			await engine.StartCompare();
-			await tcs.Task;
-
-			engine.ScanDone -= OnDone;
-			engine.ScanAborted -= OnAborted;
-
+			using var orchestrator = new ScanOrchestrator(engine);
+			WireProgress(orchestrator);
+			await orchestrator.CompareAsync(ct);
+			if (orchestrator.State == ScanState.Aborted)
+				throw new OperationCanceledException(ct);
 			return engine.Duplicates;
-
-			void OnDone(object? s, EventArgs e) => tcs.TrySetResult();
-			void OnAborted(object? s, EventArgs e) => tcs.TrySetCanceled();
 		}
 
-		internal static void WireProgress(ScanEngine engine) {
+		/// <summary>
+		/// Subscribes to the orchestrator's events and writes progress to Console.Error.
+		/// Adapts the previous WireProgress(ScanEngine) to the orchestrator's throttled
+		/// ProgressChanged event, preserving the \r progress bar in interactive terminals.
+		/// </summary>
+		internal static void WireProgress(ScanOrchestrator orchestrator) {
 			bool isTerminal = !Console.IsErrorRedirected;
 
-			engine.FilesEnumerated += (_, _) =>
+			orchestrator.Engine.FilesEnumerated += (_, _) =>
 				Console.Error.WriteLine("[scan] File enumeration complete.");
 
-			engine.BuildingHashesDone += (_, _) =>
+			orchestrator.Engine.BuildingHashesDone += (_, _) =>
 				Console.Error.WriteLine("[scan] Hashing complete.");
 
-			engine.Progress += (_, e) => {
-				int pct = e.MaxPosition > 0 ? (int)(100L * e.CurrentPosition / e.MaxPosition) : 0;
-				string eta = e.Remaining == TimeSpan.Zero ? "..." : e.Remaining.ToString(@"m\mss\s");
-				string stage = string.IsNullOrEmpty(e.CurrentStage)
+			orchestrator.ProgressChanged += (_, e) => {
+				int pct = e.Percent;
+				string eta = e.RemainingTime == TimeSpan.Zero ? "..." : e.RemainingTime.ToString(@"m\mss\s");
+				string stage = string.IsNullOrEmpty(e.Message)
 					? string.Empty
-					: e.StageMax > 0 ? $"  ({e.CurrentStage} {e.StageCurrent}/{e.StageMax})" : $"  ({e.CurrentStage})";
+					: e.StageMax > 0 ? $"  ({e.Message} {e.StageCurrent}/{e.StageMax})" : $"  ({e.Message})";
 				if (isTerminal)
-					Console.Error.Write($"\r[{pct,3}%] {e.CurrentPosition}/{e.MaxPosition}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}    ");
+					Console.Error.Write($"\r[{pct,3}%] {e.FilesProcessed}/{e.FilesTotal}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}    ");
 				else
-					Console.Error.WriteLine($"[{pct,3}%] {e.CurrentPosition}/{e.MaxPosition}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}");
+					Console.Error.WriteLine($"[{pct,3}%] {e.FilesProcessed}/{e.FilesTotal}  ETA {eta}  {TruncatePath(e.CurrentFile, 60)}{stage}");
 			};
 
-			engine.ScanDone += (_, _) => {
-				if (isTerminal) Console.Error.WriteLine();
-				Console.Error.WriteLine("[scan] Comparison complete.");
-			};
-
-			engine.ScanAborted += (_, _) => {
-				if (isTerminal) Console.Error.WriteLine();
-				Console.Error.WriteLine("[scan] Aborted.");
+			orchestrator.Completed += (_, e) => {
+				if (e.State == ScanState.Done) {
+					if (isTerminal) Console.Error.WriteLine();
+					Console.Error.WriteLine("[scan] Comparison complete.");
+				}
+				else if (e.State == ScanState.Aborted) {
+					if (isTerminal) Console.Error.WriteLine();
+					Console.Error.WriteLine("[scan] Aborted.");
+				}
+				else if (e.State == ScanState.Error && e.ErrorMessage != null) {
+					if (isTerminal) Console.Error.WriteLine();
+					Console.Error.WriteLine($"[scan] Error: {e.ErrorMessage}");
+				}
 			};
 		}
-
 
 		internal static Settings LoadOrCreateSettings(FileInfo? settingsFile) {
 			if (settingsFile == null || !settingsFile.Exists)

@@ -9,116 +9,26 @@ static class SettingsEndpoints {
 		var group = app.MapGroup("/api/settings");
 		group.RequireAuthorization();
 
-		// GET /api/settings — get current settings
+		// GET /api/settings — get current settings (returns Dto with nested Core)
 		group.MapGet("/", (ScanService scan, WebSettingsService settingsService) => {
-			var s = scan.Settings;
-			return Results.Ok(new {
-				IncludeList = s.IncludeList.ToList(),
-				BlackList = s.BlackList.ToList(),
-				Threshhold = s.Threshhold,
-				Percent = s.Percent,
-				PercentDurationDifference = s.PercentDurationDifference,
-				MaxDegreeOfParallelism = s.MaxDegreeOfParallelism,
-				ThumbnailCount = s.ThumbnailCount,
-				IncludeSubDirectories = s.IncludeSubDirectories,
-				IncludeImages = s.IncludeImages,
-				UsePHashing = s.UsePHashing,
-				IgnoreReadOnlyFolders = s.IgnoreReadOnlyFolders,
-				IgnoreReparsePoints = s.IgnoreReparsePoints,
-				ExcludeHardLinks = s.ExcludeHardLinks,
-				UseExifCreationDate = s.UseExifCreationDate,
-				AlwaysRetryFailedSampling = s.AlwaysRetryFailedSampling,
-				ExtendedFFToolsLogging = s.ExtendedFFToolsLogging,
-				LogExcludedFiles = s.LogExcludedFiles,
-				UseNativeFfmpegBinding = s.UseNativeFfmpegBinding,
-				HardwareAccelerationMode = s.HardwareAccelerationMode.ToString(),
-				CustomFFArguments = s.CustomFFArguments,
-				CustomDatabaseFolder = s.CustomDatabaseFolder,
-				DatabaseCheckpointIntervalMinutes = s.DatabaseCheckpointIntervalMinutes,
-				CompareHorizontallyFlipped = s.CompareHorizontallyFlipped,
-				IgnoreBlackPixels = s.IgnoreBlackPixels,
-				IgnoreWhitePixels = s.IgnoreWhitePixels,
-				IncludeNonExistingFiles = s.IncludeNonExistingFiles,
-				ScanAgainstEntireDatabase = s.ScanAgainstEntireDatabase,
-				FolderMatchMode = s.FolderMatchMode.ToString(),
-				SameFolderDepth = s.SameFolderDepth,
-				DurationDifferenceMinSeconds = s.DurationDifferenceMinSeconds,
-				DurationDifferenceMaxSeconds = s.DurationDifferenceMaxSeconds,
-				MaxSamplingDurationSeconds = s.MaxSamplingDurationSeconds,
-				FilterByFileSize = s.FilterByFileSize,
-				MinimumFileSize = s.MinimumFileSize,
-				MaximumFileSize = s.MaximumFileSize,
-				FilterByFilePathContains = s.FilterByFilePathContains,
-				FilePathContainsTexts = s.FilePathContainsTexts,
-				FilterByFilePathNotContains = s.FilterByFilePathNotContains,
-				FilePathNotContainsTexts = s.FilePathNotContainsTexts,
-				EnablePartialClipDetection = s.EnablePartialClipDetection,
-				PartialClipMinRatio = s.PartialClipMinRatio,
-				PartialClipSimilarityThreshold = s.PartialClipSimilarityThreshold,
-				PartialClipRequireVisualMatch = s.PartialClipRequireVisualMatch,
-				PartialClipVisualThreshold = s.PartialClipVisualThreshold,
-				// WebUI-only settings
+			return Results.Ok(new WebSettingsService.Dto {
+				Core = scan.Settings,
 				AutoLoadThumbnails = settingsService.AutoLoadThumbnails,
 				ThumbnailWidth = settingsService.ThumbnailWidth,
 				ThumbnailJpegQuality = settingsService.ThumbnailJpegQuality,
-				LanguageCode = settingsService.LanguageCode,
-				ShowWelcomeGuide = s.ShowWelcomeGuide,
 			});
 		});
 
-		// PUT /api/settings — update settings
+		// PUT /api/settings — update settings (receives Dto with nested Core)
 		group.MapPut("/", (ScanService scan, WebSettingsService settingsService, WebSettingsService.Dto dto) => {
-			var s = scan.Settings;
-			s.IncludeList = new HashSet<string>(dto.IncludeList, StringComparer.OrdinalIgnoreCase);
-			s.BlackList = new HashSet<string>(dto.BlackList, StringComparer.OrdinalIgnoreCase);
-			s.Threshhold = dto.Threshhold;
-			s.Percent = Math.Clamp(dto.Percent, 0f, 100f);
-			s.PercentDurationDifference = Math.Clamp(dto.PercentDurationDifference, 0d, 100d);
-			s.MaxDegreeOfParallelism = Math.Clamp(dto.MaxDegreeOfParallelism, 1, Environment.ProcessorCount * 2);
-			s.ThumbnailCount = Math.Clamp(dto.ThumbnailCount, 0, 20);
-			s.IncludeSubDirectories = dto.IncludeSubDirectories;
-			s.IncludeImages = dto.IncludeImages;
-			s.UsePHashing = dto.UsePHashing;
-			s.IgnoreReadOnlyFolders = dto.IgnoreReadOnlyFolders;
-			s.IgnoreReparsePoints = dto.IgnoreReparsePoints;
-			s.ExcludeHardLinks = dto.ExcludeHardLinks;
-			s.UseExifCreationDate = dto.UseExifCreationDate;
-			s.AlwaysRetryFailedSampling = dto.AlwaysRetryFailedSampling;
-			s.ExtendedFFToolsLogging = dto.ExtendedFFToolsLogging;
-			s.LogExcludedFiles = dto.LogExcludedFiles;
-			s.UseNativeFfmpegBinding = dto.UseNativeFfmpegBinding;
-			s.HardwareAccelerationMode = dto.HardwareAccelerationMode;
-			s.CustomFFArguments = dto.CustomFFArguments;
-			s.CustomDatabaseFolder = dto.CustomDatabaseFolder;
-			s.DatabaseCheckpointIntervalMinutes = dto.DatabaseCheckpointIntervalMinutes;
-			s.CompareHorizontallyFlipped = dto.CompareHorizontallyFlipped;
-			s.IgnoreBlackPixels = dto.IgnoreBlackPixels;
-			s.IgnoreWhitePixels = dto.IgnoreWhitePixels;
-			s.IncludeNonExistingFiles = dto.IncludeNonExistingFiles;
-			s.ScanAgainstEntireDatabase = dto.ScanAgainstEntireDatabase;
-			s.FolderMatchMode = dto.FolderMatchMode;
-			s.SameFolderDepth = dto.SameFolderDepth;
-			s.DurationDifferenceMinSeconds = dto.DurationDifferenceMinSeconds;
-			s.DurationDifferenceMaxSeconds = dto.DurationDifferenceMaxSeconds;
-			s.MaxSamplingDurationSeconds = dto.MaxSamplingDurationSeconds;
-			s.FilterByFileSize = dto.FilterByFileSize;
-			s.MinimumFileSize = Math.Max(0, dto.MinimumFileSize);
-			s.MaximumFileSize = Math.Max(s.MinimumFileSize, dto.MaximumFileSize);
-			s.FilterByFilePathContains = dto.FilterByFilePathContains;
-			s.FilePathContainsTexts = dto.FilePathContainsTexts.ToList();
-			s.FilterByFilePathNotContains = dto.FilterByFilePathNotContains;
-			s.FilePathNotContainsTexts = dto.FilePathNotContainsTexts.ToList();
-			s.EnablePartialClipDetection = dto.EnablePartialClipDetection;
-			s.PartialClipMinRatio = dto.PartialClipMinRatio;
-			s.PartialClipSimilarityThreshold = dto.PartialClipSimilarityThreshold;
-			s.PartialClipRequireVisualMatch = dto.PartialClipRequireVisualMatch;
-			s.PartialClipVisualThreshold = dto.PartialClipVisualThreshold;
-			s.ShowWelcomeGuide = dto.ShowWelcomeGuide;
+			// Unified validation — same clamping rules as WebSettingsService.Load
+			if (dto.Core != null)
+				SettingsValidator.Validate(dto.Core);
+			scan.Settings = dto.Core;
 			// WebUI-only settings
 			settingsService.AutoLoadThumbnails = dto.AutoLoadThumbnails;
 			settingsService.ThumbnailWidth = Math.Clamp(dto.ThumbnailWidth, 48, 960);
 			settingsService.ThumbnailJpegQuality = Math.Clamp(dto.ThumbnailJpegQuality, 10, 95);
-			settingsService.LanguageCode = dto.LanguageCode;
 			return Results.Ok(new { updated = true });
 		});
 

@@ -30,14 +30,6 @@ public sealed class ScanStateResponse {
 
 // ── Results ───────────────────────────────────────────────────────────────────
 
-public sealed class ResultsResponse {
-	public List<DuplicateGroupDto> Groups { get; set; } = new();
-	public int TotalGroups { get; set; }
-	public int TotalFiles { get; set; }
-	public long TotalSizeBytes { get; set; }
-	public long PotentialSavingsBytes { get; set; }
-}
-
 public sealed class ResultsPageResponse {
 	public List<DuplicateGroupDto> Groups { get; set; } = new();
 	public int TotalGroups { get; set; }

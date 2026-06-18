@@ -1,0 +1,90 @@
+// /*
+//     Copyright (C) 2026 0x90d
+//     This file is part of VideoDuplicateFinder
+//     VideoDuplicateFinder is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//     VideoDuplicateFinder is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//     You should have received a copy of the GNU Affero General Public License
+//     along with VideoDuplicateFinder.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+using System.Runtime.CompilerServices;
+
+namespace VDF.Core;
+
+/// <summary>
+/// Handles duplicate detection: pre-filters, comparison, and merging.
+/// Extracted from ScanEngine to improve separation of concerns.
+/// </summary>
+internal sealed class DuplicateComparer {
+	readonly Settings _settings;
+
+	public DuplicateComparer(Settings settings) {
+		_settings = settings;
+	}
+
+	/// <summary>
+	/// Multi-position quick pre-filter using pHash Hamming distance.
+	/// Returns true if the pair should be considered further, false if it can be safely skipped.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public bool QuickPHashPreFilterMulti(FileEntry a, FileEntry b) {
+		ulong?[]? phashesA = a.comparePHashes;
+		ulong?[]? phashesB = b.comparePHashes;
+		if (phashesA != null && phashesB != null) {
+			for (int i = 0; i < phashesA.Length && i < phashesB.Length; i++) {
+				if (phashesA[i] == null || phashesB[i] == null)
+					continue;
+				if (BitOperations.PopCount(phashesA[i]!.Value ^ phashesB[i]!.Value) > 10)
+					return false;
+			}
+			return true;
+		}
+		return QuickPHashPreFilter(a, b); // fallback to single-position
+	}
+
+	/// <summary>
+	/// Single-position quick pre-filter using pHash Hamming distance.
+	/// Returns true if the pair should be considered further, false if it can be safely skipped.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public bool QuickPHashPreFilter(FileEntry a, FileEntry b) {
+		ulong? phashA = a.comparePHashes?.Length > 0 ? a.comparePHashes[0] : null;
+		ulong? phashB = b.comparePHashes?.Length > 0 ? b.comparePHashes[0] : null;
+		if (phashA == null && phashB == null)
+			return true; // both missing pHash, let full comparison decide
+		if (phashA == null || phashB == null)
+			return false; // one has pHash, other doesn't — likely different
+		return BitOperations.PopCount(phashA.Value ^ phashB.Value) <= 32;
+	}
+
+	/// <summary>
+	/// Checks if two entries are duplicates using the configured comparison method.
+	/// </summary>
+	public bool TryCheckDuplicate(FileEntry entry, FileEntry compItem, byte[]?[]? flippedGrayBytes, ulong?[]? flippedPHashes, out float difference, out DuplicateFlags flags) {
+		flags = DuplicateFlags.None;
+		difference = 0;
+		bool isDuplicate = ScanEngine.CheckIfDuplicate(entry, null, (ulong?[]?)null, compItem, out difference);
+		if (_settings.CompareHorizontallyFlipped &&
+			ScanEngine.CheckIfDuplicate(entry, flippedGrayBytes, flippedPHashes, compItem, out float flippedDifference)) {
+			if (!isDuplicate || flippedDifference < difference) {
+				flags |= DuplicateFlags.Flipped;
+				isDuplicate = true;
+				difference = flippedDifference;
+			}
+		}
+		return isDuplicate;
+	}
+
+	/// <summary>
+	/// Gets the duration tolerance in seconds for a given video duration.
+	/// </summary>
+	public double GetDurationToleranceSeconds(double durationSeconds) {
+		return _settings.GetDurationToleranceSeconds(durationSeconds);
+	}
+}

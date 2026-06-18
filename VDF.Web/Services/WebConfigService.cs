@@ -22,8 +22,24 @@ namespace VDF.Web.Services;
 /// Unified configuration service that reads settings from a config.json file
 /// in the application directory. Falls back to environment variables if the
 /// config file is absent or a specific key is not set.
+///
+/// Also exposes the early-boot configuration (<see cref="EarlyBootConfig"/>)
+/// used by Program.cs before DI is built — this replaces the duplicated
+/// config.json parsing that previously existed in Program.cs.
 /// </summary>
 public sealed class WebConfigService {
+	/// <summary>Early boot configuration loaded before DI is built.</summary>
+	public sealed class EarlyBootConfig {
+		public string? BasePath { get; set; }
+		public string? TlsCert { get; set; }
+		public string? TlsKey { get; set; }
+		public string? Password { get; set; }
+		public int? Port { get; set; }
+		public List<string>? CorsOrigins { get; set; }
+		public bool LoadedFromFile { get; set; }
+		public string ConfigPath { get; set; } = string.Empty;
+	}
+
 	public sealed class WebConfig {
 		[JsonPropertyName("password")]
 		public string? Password { get; set; }
@@ -61,6 +77,56 @@ public sealed class WebConfigService {
 		ReadCommentHandling = JsonCommentHandling.Skip,
 		AllowTrailingCommas = true,
 	};
+
+	/// <summary>
+	/// Returns the resolved path to config.json, honouring VDF_CONFIG_PATH if set.
+	/// </summary>
+	public static string ResolveConfigPath() {
+		var explicitPath = Environment.GetEnvironmentVariable("VDF_CONFIG_PATH");
+		if (!string.IsNullOrWhiteSpace(explicitPath))
+			return explicitPath;
+		// Default: config.json in the application base directory
+		return Path.Combine(AppContext.BaseDirectory, "config.json");
+	}
+
+	/// <summary>
+	/// Loads the minimal configuration fields needed before DI is built. Returns
+	/// a <see cref="EarlyBootConfig"/>; EarlyBootConfig"/>. Returns an empty instance
+	/// (with <c>LoadedFromFile = false</c>) when no file exists.
+	/// </summary>
+	public static EarlyBootConfig LoadEarlyBootConfig() {
+		string configPath = ResolveConfigPath();
+		var result = new EarlyBootConfig { ConfigPath = configPath };
+		if (!File.Exists(configPath))
+			return result;
+		try {
+			var json = File.ReadAllText(configPath);
+			using var doc = JsonDocument.Parse(json);
+			if (doc.RootElement.TryGetProperty("web", out var web)) {
+				if (web.TryGetProperty("password", out var pw) && pw.ValueKind == JsonValueKind.String)
+					result.Password = pw.GetString();
+				if (web.TryGetProperty("basePath", out var bp) && bp.ValueKind == JsonValueKind.String)
+					result.BasePath = bp.GetString();
+				if (web.TryGetProperty("tlsCert", out var tc) && tc.ValueKind == JsonValueKind.String)
+					result.TlsCert = tc.GetString();
+				if (web.TryGetProperty("tlsKey", out var tk) && tk.ValueKind == JsonValueKind.String)
+					result.TlsKey = tk.GetString();
+				if (web.TryGetProperty("port", out var pt) && pt.ValueKind == JsonValueKind.Number)
+					result.Port = pt.GetInt32();
+				if (web.TryGetProperty("corsOrigins", out var co) && co.ValueKind == JsonValueKind.Array) {
+					result.CorsOrigins = new List<string>();
+					foreach (var item in co.EnumerateArray())
+						if (item.ValueKind == JsonValueKind.String)
+							result.CorsOrigins.Add(item.GetString()!);
+				}
+				result.LoadedFromFile = true;
+			}
+		}
+		catch {
+			// Swallow — caller will fall back to env vars
+		}
+		return result;
+	}
 
 	readonly WebConfig? _config;
 	readonly string _configPath;
@@ -160,13 +226,5 @@ public sealed class WebConfigService {
 		}
 	}
 
-	static string GetConfigPath() {
-		// Prefer VDF_CONFIG_PATH env var for explicit override
-		var explicitPath = Environment.GetEnvironmentVariable("VDF_CONFIG_PATH");
-		if (!string.IsNullOrWhiteSpace(explicitPath))
-			return explicitPath;
-
-		// Default: config.json in the application base directory
-		return Path.Combine(AppContext.BaseDirectory, "config.json");
-	}
+	static string GetConfigPath() => ResolveConfigPath();
 }

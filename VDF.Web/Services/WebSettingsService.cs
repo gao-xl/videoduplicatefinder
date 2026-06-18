@@ -15,6 +15,7 @@
 //
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using VDF.Core;
 using VDF.Core.FFTools;
@@ -27,73 +28,29 @@ namespace VDF.Web.Services {
 			_logger = logger;
 		}
 
-		/// <summary>JSON-serializable mirror of the settings relevant to VDF.Web.</summary>
+		/// <summary>
+		/// JSON-serializable settings for VDF.Web.  Composes the entire
+		/// <see cref="Core"/> object so that new Core fields are automatically
+		/// persisted without manual sync code.  Only WebUI-specific fields that
+		/// don't belong in Core are kept at the top level.
+		/// </summary>
 		public sealed class Dto {
-			public List<string> IncludeList { get; set; } = new();
-			public List<string> BlackList { get; set; } = new();
-			public byte Threshhold { get; set; } = 5;
-			public float Percent { get; set; } = 96f;
-			public double PercentDurationDifference { get; set; } = 20d;
-			public int MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
-			public int ThumbnailCount { get; set; } = 1;
-			public bool IncludeSubDirectories { get; set; } = true;
-			public bool IncludeImages { get; set; } = true;
-			public bool UsePHashing { get; set; }
-			public bool IgnoreReadOnlyFolders { get; set; }
-			public bool IgnoreReparsePoints { get; set; }
-			public bool ExcludeHardLinks { get; set; }
-			public bool UseExifCreationDate { get; set; }
-			public bool AlwaysRetryFailedSampling { get; set; }
-			public bool ExtendedFFToolsLogging { get; set; }
-			public bool LogExcludedFiles { get; set; }
-			public bool UseNativeFfmpegBinding { get; set; }
-			[JsonConverter(typeof(JsonStringEnumConverter<FFHardwareAccelerationMode>))]
-			public FFHardwareAccelerationMode HardwareAccelerationMode { get; set; } = FFHardwareAccelerationMode.auto;
-			public string CustomFFArguments { get; set; } = string.Empty;
-			public string CustomDatabaseFolder { get; set; } = string.Empty;
-			public int DatabaseCheckpointIntervalMinutes { get; set; } = 5;
-			public bool CompareHorizontallyFlipped { get; set; }
-			public bool IgnoreBlackPixels { get; set; }
-			public bool IgnoreWhitePixels { get; set; }
-			public bool IncludeNonExistingFiles { get; set; }
-			public bool ScanAgainstEntireDatabase { get; set; }
-			[JsonConverter(typeof(JsonStringEnumConverter<FolderMatchMode>))]
-			public FolderMatchMode FolderMatchMode { get; set; }
-			public int SameFolderDepth { get; set; } = 1;
-			public double DurationDifferenceMinSeconds { get; set; }
-			public double DurationDifferenceMaxSeconds { get; set; }
-			public double MaxSamplingDurationSeconds { get; set; }
-			public bool FilterByFileSize { get; set; }
-			public int MinimumFileSize { get; set; }
-			public int MaximumFileSize { get; set; }
-			public bool FilterByFilePathContains { get; set; }
-			public List<string> FilePathContainsTexts { get; set; } = new();
-			public bool FilterByFilePathNotContains { get; set; }
-			public List<string> FilePathNotContainsTexts { get; set; } = new();
-			public bool EnablePartialClipDetection { get; set; }
-			public double PartialClipMinRatio { get; set; } = 0.10;
-			public double PartialClipSimilarityThreshold { get; set; } = 0.80;
-			public bool PartialClipRequireVisualMatch { get; set; } = true;
-			public double PartialClipVisualThreshold { get; set; } = 0.85;
+			/// <summary>The canonical Core settings — serialized as a nested "core" object.</summary>
+			public Settings Core { get; set; } = new();
 
-			// WebUI-only settings (not in VDF.Core Settings)
+			// ── WebUI-only settings (not in VDF.Core Settings) ──────────────
 			/// <summary>Whether to automatically load HQ thumbnails on the results page.</summary>
 			public bool AutoLoadThumbnails { get; set; } = true;
 			/// <summary>Thumbnail resolution width in pixels (48–960). Lower = less memory, more pixelated.</summary>
 			public int ThumbnailWidth { get; set; } = 480;
 			/// <summary>JPEG quality for thumbnails (10–95). Lower = smaller, more artifacts.</summary>
 			public int ThumbnailJpegQuality { get; set; } = 85;
-			/// <summary>UI language code (e.g., en, zh-Hans, de, es, fr, pt).</summary>
-			public string LanguageCode { get; set; } = "zh-Hans";
-			/// <summary>Whether to show the welcome guide on first visit.</summary>
-			public bool ShowWelcomeGuide { get; set; } = true;
 		}
 
 		/// <summary>WebUI-only settings that don't belong in VDF.Core.Settings.</summary>
 		public bool AutoLoadThumbnails { get; set; } = true;
 		public int ThumbnailWidth { get; set; } = 480;
 		public int ThumbnailJpegQuality { get; set; } = 85;
-		public string LanguageCode { get; set; } = "zh-Hans";
 
 		static string SettingsPath {
 			get {
@@ -109,123 +66,71 @@ namespace VDF.Web.Services {
 			}
 		}
 
-		public bool Load(Settings s) {
-			if (!File.Exists(SettingsPath)) return false;
+		/// <summary>
+		/// Loads settings from disk.  Returns a validated <see cref="Settings"/>
+		/// instance (the nested Core object) or <c>null</c> if no file exists.
+		/// The caller should assign the result to <c>ScanEngine.Settings</c>.
+		/// </summary>
+		public Settings? Load() {
+			if (!File.Exists(SettingsPath)) return null;
 			try {
-				var dto = JsonSerializer.Deserialize(File.ReadAllText(SettingsPath), WebJsonContext.Default.Dto);
-				if (dto == null) return false;
-				foreach (var p in dto.IncludeList) s.IncludeList.Add(p);
-				foreach (var p in dto.BlackList) s.BlackList.Add(p);
-				s.Threshhold = dto.Threshhold;
-				s.Percent = dto.Percent;
-				s.PercentDurationDifference = dto.PercentDurationDifference;
-				s.MaxDegreeOfParallelism = dto.MaxDegreeOfParallelism;
-				s.ThumbnailCount = dto.ThumbnailCount;
-				s.IncludeSubDirectories = dto.IncludeSubDirectories;
-				s.IncludeImages = dto.IncludeImages;
-				s.UsePHashing = dto.UsePHashing;
-				s.IgnoreReadOnlyFolders = dto.IgnoreReadOnlyFolders;
-				s.IgnoreReparsePoints = dto.IgnoreReparsePoints;
-				s.ExcludeHardLinks = dto.ExcludeHardLinks;
-				s.UseExifCreationDate = dto.UseExifCreationDate;
-				s.AlwaysRetryFailedSampling = dto.AlwaysRetryFailedSampling;
-				s.ExtendedFFToolsLogging = dto.ExtendedFFToolsLogging;
-				s.LogExcludedFiles = dto.LogExcludedFiles;
-				s.UseNativeFfmpegBinding = dto.UseNativeFfmpegBinding;
-				s.HardwareAccelerationMode = dto.HardwareAccelerationMode;
-				s.CustomFFArguments = dto.CustomFFArguments;
-				s.CustomDatabaseFolder = dto.CustomDatabaseFolder;
-				s.DatabaseCheckpointIntervalMinutes = dto.DatabaseCheckpointIntervalMinutes;
-				s.CompareHorizontallyFlipped = dto.CompareHorizontallyFlipped;
-				s.IgnoreBlackPixels = dto.IgnoreBlackPixels;
-				s.IgnoreWhitePixels = dto.IgnoreWhitePixels;
-				s.IncludeNonExistingFiles = dto.IncludeNonExistingFiles;
-				s.ScanAgainstEntireDatabase = dto.ScanAgainstEntireDatabase;
-				s.FolderMatchMode = dto.FolderMatchMode;
-				s.SameFolderDepth = dto.SameFolderDepth;
-				s.DurationDifferenceMinSeconds = dto.DurationDifferenceMinSeconds;
-				s.DurationDifferenceMaxSeconds = dto.DurationDifferenceMaxSeconds;
-				s.MaxSamplingDurationSeconds = dto.MaxSamplingDurationSeconds;
-				s.FilterByFileSize = dto.FilterByFileSize;
-				s.MinimumFileSize = dto.MinimumFileSize;
-				s.MaximumFileSize = dto.MaximumFileSize;
-				s.FilterByFilePathContains = dto.FilterByFilePathContains;
-				s.FilePathContainsTexts = dto.FilePathContainsTexts.ToList();
-				s.FilterByFilePathNotContains = dto.FilterByFilePathNotContains;
-				s.FilePathNotContainsTexts = dto.FilePathNotContainsTexts.ToList();
-				s.EnablePartialClipDetection = dto.EnablePartialClipDetection;
-				s.PartialClipMinRatio = dto.PartialClipMinRatio;
-				s.PartialClipSimilarityThreshold = dto.PartialClipSimilarityThreshold;
-				s.PartialClipRequireVisualMatch = dto.PartialClipRequireVisualMatch;
-				s.PartialClipVisualThreshold = dto.PartialClipVisualThreshold;
+				var json = File.ReadAllText(SettingsPath);
+				json = MigrateLegacyJson(json);
+				var dto = JsonSerializer.Deserialize(json, WebJsonContext.Default.Dto);
+				if (dto?.Core == null) return null;
+				SettingsValidator.Validate(dto.Core);
 				// WebUI-only
 				AutoLoadThumbnails = dto.AutoLoadThumbnails;
 				ThumbnailWidth = Math.Clamp(dto.ThumbnailWidth, 48, 960);
 				ThumbnailJpegQuality = Math.Clamp(dto.ThumbnailJpegQuality, 10, 95);
-				LanguageCode = dto.LanguageCode;
-				return true;
+				return dto.Core;
 			}
-			catch (Exception ex) { _logger.LogWarning(ex, "Failed to load web settings file"); return false; }
+			catch (Exception ex) { _logger.LogWarning(ex, "Failed to load web settings file"); return null; }
 		}
 
 		public bool Save(Settings s) {
 			try {
 				Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
 				var dto = new Dto {
-					IncludeList = s.IncludeList.ToList(),
-					BlackList = s.BlackList.ToList(),
-					Threshhold = s.Threshhold,
-					Percent = s.Percent,
-					PercentDurationDifference = s.PercentDurationDifference,
-					MaxDegreeOfParallelism = s.MaxDegreeOfParallelism,
-					ThumbnailCount = s.ThumbnailCount,
-					IncludeSubDirectories = s.IncludeSubDirectories,
-					IncludeImages = s.IncludeImages,
-					UsePHashing = s.UsePHashing,
-					IgnoreReadOnlyFolders = s.IgnoreReadOnlyFolders,
-					IgnoreReparsePoints = s.IgnoreReparsePoints,
-					ExcludeHardLinks = s.ExcludeHardLinks,
-					UseExifCreationDate = s.UseExifCreationDate,
-					AlwaysRetryFailedSampling = s.AlwaysRetryFailedSampling,
-					ExtendedFFToolsLogging = s.ExtendedFFToolsLogging,
-					LogExcludedFiles = s.LogExcludedFiles,
-					UseNativeFfmpegBinding = s.UseNativeFfmpegBinding,
-					HardwareAccelerationMode = s.HardwareAccelerationMode,
-					CustomFFArguments = s.CustomFFArguments,
-					CustomDatabaseFolder = s.CustomDatabaseFolder,
-					DatabaseCheckpointIntervalMinutes = s.DatabaseCheckpointIntervalMinutes,
-					CompareHorizontallyFlipped = s.CompareHorizontallyFlipped,
-					IgnoreBlackPixels = s.IgnoreBlackPixels,
-					IgnoreWhitePixels = s.IgnoreWhitePixels,
-					IncludeNonExistingFiles = s.IncludeNonExistingFiles,
-					ScanAgainstEntireDatabase = s.ScanAgainstEntireDatabase,
-					FolderMatchMode = s.FolderMatchMode,
-					SameFolderDepth = s.SameFolderDepth,
-					DurationDifferenceMinSeconds = s.DurationDifferenceMinSeconds,
-					DurationDifferenceMaxSeconds = s.DurationDifferenceMaxSeconds,
-					MaxSamplingDurationSeconds = s.MaxSamplingDurationSeconds,
-					FilterByFileSize = s.FilterByFileSize,
-					MinimumFileSize = s.MinimumFileSize,
-					MaximumFileSize = s.MaximumFileSize,
-					FilterByFilePathContains = s.FilterByFilePathContains,
-					FilePathContainsTexts = s.FilePathContainsTexts.ToList(),
-					FilterByFilePathNotContains = s.FilterByFilePathNotContains,
-					FilePathNotContainsTexts = s.FilePathNotContainsTexts.ToList(),
-					EnablePartialClipDetection = s.EnablePartialClipDetection,
-					PartialClipMinRatio = s.PartialClipMinRatio,
-					PartialClipSimilarityThreshold = s.PartialClipSimilarityThreshold,
-					PartialClipRequireVisualMatch = s.PartialClipRequireVisualMatch,
-					PartialClipVisualThreshold = s.PartialClipVisualThreshold,
-					// WebUI-only
+					Core = s,
 					AutoLoadThumbnails = AutoLoadThumbnails,
 					ThumbnailWidth = ThumbnailWidth,
 					ThumbnailJpegQuality = ThumbnailJpegQuality,
-					LanguageCode = LanguageCode,
 				};
 				File.WriteAllText(SettingsPath, JsonSerializer.Serialize(dto, WebJsonContext.Default.Dto));
 				return true;
 			}
 			catch (Exception ex) { _logger.LogError(ex, "Failed to save web settings file"); return false; }
+		}
+
+		/// <summary>
+		/// If the JSON has flat Core fields at the top level (old format), moves them
+		/// into a nested <c>"Core"</c> object so the composition-based deserializer
+		/// can read them.  Only the three WebUI-specific keys stay at the top level.
+		/// </summary>
+		internal static string MigrateLegacyJson(string json) {
+			JsonNode? root;
+			try { root = JsonNode.Parse(json); }
+			catch { return json; }
+			if (root is not JsonObject obj) return json;
+			if (obj.ContainsKey("Core")) return json; // already new format
+
+			var core = new JsonObject();
+			// Everything that is NOT a WebUI-specific key is a Core field — move it.
+			var webSpecificKeys = new HashSet<string> {
+				"AutoLoadThumbnails", "ThumbnailWidth", "ThumbnailJpegQuality"
+			};
+			var keysToMove = obj
+				.Where(kvp => !webSpecificKeys.Contains(kvp.Key))
+				.Select(kvp => kvp.Key)
+				.ToList();
+			foreach (var key in keysToMove) {
+				var node = obj[key];
+				obj.Remove(key); // detach parent before re-parenting under "Core"
+				core[key] = node;
+			}
+			obj["Core"] = core;
+			return root.ToJsonString();
 		}
 	}
 }

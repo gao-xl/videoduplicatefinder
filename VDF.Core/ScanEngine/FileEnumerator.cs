@@ -191,21 +191,61 @@ internal sealed class FileEnumerator {
 	}
 
 	/// <summary>
-	/// Checks if a path is a network path (SMB/NFS).
+	/// Determines whether a path is likely a network path (SMB/NFS share).
+	/// On Windows: UNC paths (\\server\share) or drive letters mapped to network shares.
+	/// On Linux/macOS: paths starting with /mnt/, /media/, /srv/, or NFS mounts.
 	/// </summary>
 	public static bool IsNetworkPath(string path) {
-		try {
-			return path.StartsWith("\\\\") || path.StartsWith("//");
-		}
-		catch {
+		if (string.IsNullOrEmpty(path)) return false;
+		if (CoreUtils.IsWindows) {
+			// UNC path: \\server\share
+			if (path.StartsWith(@"\\", StringComparison.OrdinalIgnoreCase))
+				return true;
+			// Check if a drive root is a network drive (e.g. Z:\)
+			if (path.Length >= 2 && path[1] == ':') {
+				try {
+					var driveRoot = path.Substring(0, 2) + Path.DirectorySeparatorChar;
+					var driveInfo = new DriveInfo(driveRoot);
+					if (driveInfo.DriveType == DriveType.Network)
+						return true;
+				}
+				catch { }
+			}
 			return false;
 		}
+		// Linux/macOS heuristics
+		if (path.StartsWith("/mnt/", StringComparison.OrdinalIgnoreCase) ||
+			path.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ||
+			path.StartsWith("/srv/", StringComparison.OrdinalIgnoreCase) ||
+			path.StartsWith("/nas/", StringComparison.OrdinalIgnoreCase))
+			return true;
+		return false;
 	}
 
 	/// <summary>
-	/// Checks if a folder path matches a blacklist entry.
+	/// Returns true if folderPath is covered by blacklistEntry.
+	/// Supports wildcard patterns (*, ?) in blacklistEntry — see https://github.com/0x90d/videoduplicatefinder/issues/582
 	/// </summary>
 	public static bool IsBlackListed(string folderPath, string blacklistEntry) {
+		bool hasWildcard = blacklistEntry.IndexOfAny(['*', '?']) >= 0;
+		if (!hasWildcard) {
+			if (!folderPath.StartsWith(blacklistEntry, StringComparison.OrdinalIgnoreCase))
+				return false;
+			if (folderPath.Length == blacklistEntry.Length)
+				return true;
+			// Reason: https://github.com/0x90d/videoduplicatefinder/issues/249
+			string relativePath = Path.GetRelativePath(blacklistEntry, folderPath);
+			return !relativePath.StartsWith('.') && !Path.IsPathRooted(relativePath);
+		}
+		// Wildcard pattern without path separators: match against each individual segment of folderPath
+		bool hasSeparator = blacklistEntry.Contains(Path.DirectorySeparatorChar) ||
+		                    blacklistEntry.Contains(Path.AltDirectorySeparatorChar);
+		if (!hasSeparator) {
+			string[] segments = folderPath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+				StringSplitOptions.RemoveEmptyEntries);
+			return segments.Any(s => System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(blacklistEntry, s));
+		}
+		// Wildcard pattern with path separators: match against the full path
 		return System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(blacklistEntry, folderPath);
 	}
 }

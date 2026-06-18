@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using VDF.Core.Services;
 using VDF.Web.Hubs;
 using VDF.Web.Models;
 using VDF.Web.Services;
@@ -44,21 +45,7 @@ static class ScanEndpoints {
 
 		// GET /api/scan/progress — get current scan progress
 		group.MapGet("/progress", (ScanService scan) => {
-			var p = scan.LastProgress;
-			return Results.Ok(new ScanProgressResponse {
-				State = scan.State.ToString(),
-				FilesHashed = scan.FilesHashed,
-				CurrentFile = p?.CurrentFile ?? string.Empty,
-				Current = p?.Current ?? 0,
-				Max = p?.Max ?? 0,
-				ElapsedSeconds = p?.Elapsed.TotalSeconds ?? 0,
-				RemainingSeconds = p?.Remaining.TotalSeconds ?? 0,
-				CurrentStage = p?.CurrentStage ?? string.Empty,
-				StageCurrent = p?.StageCurrent ?? 0,
-				StageMax = p?.StageMax ?? 0,
-				ErrorMessage = scan.ErrorMessage,
-				CurrentThumbnailPath = p?.CurrentThumbnailPath,
-			});
+			return Results.Ok(scan.BuildProgressResponse());
 		});
 
 		// GET /api/scan/state — get current scan state only
@@ -78,10 +65,10 @@ static class ScanEndpoints {
 		});
 
 		// POST /api/scan/clear-database — clear the entire scan database
-		group.MapPost("/clear-database", (ScanService scan) => {
+		group.MapPost("/clear-database", async (ScanService scan) => {
 			if (scan.State == ScanState.Scanning || scan.State == ScanState.Comparing)
 				return Results.Json(new { error = "scan_running" }, statusCode: 400);
-			VDF.Core.Utils.DatabaseUtils.ClearDatabase();
+			await scan.ClearDatabaseAsync();
 			return Results.Ok(new { status = "database_cleared" });
 		});
 

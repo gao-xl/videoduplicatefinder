@@ -19,6 +19,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using ReactiveUI;
+using VDF.Core.Utils;
 
 namespace VDF.GUI.ViewModels {
 	public class QualityOrderVM : ReactiveObject {
@@ -30,7 +31,7 @@ namespace VDF.GUI.ViewModels {
 		public QualityOrderVM() {
 			var saved = ApplicationHelpers.MainWindowDataContext.QualityCriteriaOrder;
 			var merged = new List<string>(saved);
-			foreach (var name in MainWindowVM.QualityCriteriaMap.Keys)
+			foreach (var name in QualityCriteria.CriteriaMap.Keys)
 				if (!merged.Contains(name))
 					merged.Add(name);
 			CriteriaOrder = new ObservableCollection<string>(merged);
