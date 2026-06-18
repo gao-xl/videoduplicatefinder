@@ -19,11 +19,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using VDF.Core;
+using VDF.Web.Auth;
 using VDF.Web.Endpoints;
 using VDF.Web.Hubs;
 using VDF.Web.Middleware;
 using VDF.Web.Services;
 using VDF.Web.Utils;
+using VDF.Web.Webhooks;
+using VDF.Web.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,7 +66,13 @@ builder.Services.AddSingleton<WebSettingsService>();
 // ScanService is a singleton — one scan at a time, shared across all connections.
 builder.Services.AddSingleton<ScanService>();
 builder.Services.AddSingleton<FFmpegSetupService>();
-builder.Services.AddSingleton<HealthCheckService>();
+	builder.Services.AddSingleton<HealthCheckService>();
+	builder.Services.AddSingleton<UserStore>();
+	builder.Services.AddSingleton<AuditService>();
+	builder.Services.AddHttpClient();
+	builder.Services.AddSingleton<WebhookService>();
+	builder.Services.AddMetrics();
+	builder.Services.AddSingleton<MetricsCollector>();
 
 // --- SignalR ---
 builder.Services.AddSignalR();
@@ -233,10 +242,27 @@ if (app.Environment.IsDevelopment()) {
 app.UseStaticFiles();
 
 // Health check endpoint — lightweight, no auth required, for load balancers / orchestrators.
-app.MapGet("/health", async (HealthCheckService health) => {
-	var report = await health.CheckHealthAsync();
-	return Results.Json(report);
-});
+	app.MapGet("/health", async (HealthCheckService health) => {
+		var report = await health.CheckHealthAsync();
+		return Results.Json(new {
+			status = report.Status,
+			checks = new {
+				ffmpeg = report.Ffmpeg,
+				database = report.Database,
+			},
+			metrics = new {
+				memoryUsedMb = report.MemoryUsedMb,
+				threadCount = report.ThreadCount,
+				databaseEntries = report.DatabaseEntries,
+			},
+			info = new {
+				version = report.Version,
+				runtimeVersion = report.RuntimeVersion,
+				ffmpegVersion = report.FfmpegVersion,
+			},
+			timestamp = report.Timestamp,
+		});
+	});
 
 // CORS
 app.UseCors();
@@ -288,13 +314,14 @@ app.Use(async (ctx, next) => {
 
 // ── Minimal API endpoints ──
 
-app.MapScanApi();
-app.MapBrowseApi();
-app.MapResultApi();
-app.MapSettingsApi();
-app.MapThumbnailApi();
-app.MapAuthApi();
-app.MapSseApi();
+	app.MapScanApi();
+	app.MapBrowseApi();
+	app.MapResultApi();
+	app.MapSettingsApi();
+	app.MapThumbnailApi();
+	app.MapAuthApi();
+	app.MapSseApi();
+	app.MapWebhookApi();
 
 // ── SignalR hub ──
 

@@ -1,6 +1,5 @@
-using System.Text;
-using Microsoft.AspNetCore.RateLimiting;
-using VDF.Web.Models;
+using VDF.Web.ApiModels;
+using VDF.Web.Auth;
 using VDF.Web.Services;
 
 namespace VDF.Web.Endpoints;
@@ -8,98 +7,66 @@ namespace VDF.Web.Endpoints;
 static class AuthEndpoints {
 	public static WebApplication MapAuthApi(this WebApplication app) {
 		var group = app.MapGroup("/api/auth");
+		group.RequireAuthorization();
 
-		// POST /api/auth/login — login (no auth required)
-		group.MapPost("/login", async (HttpContext ctx, AuthService auth, LoginRequest? body) => {
-			// Support both JSON body and form-encoded (browser) requests
-			string? password;
-			bool remember;
-
-			if (body != null && !string.IsNullOrEmpty(body.Password)) {
-				password = body.Password;
-				remember = body.Remember;
-			}
-			else {
-				var contentType = ctx.Request.ContentType ?? "";
-				if (contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
-					using var reader = new StreamReader(ctx.Request.Body, Encoding.UTF8);
-					var jsonBody = await reader.ReadToEndAsync();
-					var json = System.Text.Json.JsonDocument.Parse(jsonBody);
-					password = json.RootElement.TryGetProperty("password", out var pwEl) ? pwEl.GetString() : null;
-					remember = json.RootElement.TryGetProperty("remember", out var remEl) && remEl.GetBoolean();
-				}
-				else {
-					var form = await ctx.Request.ReadFormAsync();
-					password = form["password"].ToString();
-					remember = form["remember"] == "true";
-				}
-			}
-
-			if (auth.ValidatePassword(password ?? string.Empty)) {
-				var accessToken = auth.GenerateAccessToken();
-				var refreshToken = auth.GenerateRefreshToken();
-
-				// Also set cookie for backward compatibility with browser UI
-				auth.SetAuthCookie(ctx, refreshToken, remember);
-
-				return Results.Ok(new LoginResponse {
-					Access_token = accessToken,
-					Refresh_token = refreshToken,
-					Expires_in = 900,
-				});
-			}
-
-			return Results.Json(new { error = "invalid_credentials" }, statusCode: 401);
-		}).RequireRateLimiting("login");
-
-		// POST /api/auth/refresh — refresh access token (no auth required)
-		group.MapPost("/refresh", (RefreshRequest req, AuthService auth) => {
-			var newAccessToken = auth.RefreshAccessToken(req.Refresh_token);
-			if (newAccessToken == null)
-				return Results.Json(new { error = "invalid_refresh_token" }, statusCode: 401);
-
-			return Results.Ok(new RefreshResponse {
-				Access_token = newAccessToken,
-				Expires_in = 900,
-			});
+		group.MapGet("/users", (UserStore userStore) => {
+			var users = userStore.GetAllUsers();
+			return Results.Ok(ApiResponse.Ok(users));
 		});
 
-		// POST /api/auth/logout — logout (invalidate refresh token)
-		group.MapPost("/logout", (HttpContext ctx, AuthService auth) => {
-			// Read refresh token from body if provided
-			string? refreshToken = null;
-			if (ctx.Request.HasJsonContentType()) {
-				using var reader = new StreamReader(ctx.Request.Body, Encoding.UTF8);
-				var body = reader.ReadToEnd();
-				if (!string.IsNullOrEmpty(body)) {
-					try {
-						var json = System.Text.Json.JsonDocument.Parse(body);
-						refreshToken = json.RootElement.TryGetProperty("refresh_token", out var rtEl) ? rtEl.GetString() : null;
-					}
-					catch { /* ignore parse errors */ }
-				}
-			}
+		group.MapPost("/users", (UserStore userStore, CreateUserRequest req) => {
+			if (string.IsNullOrWhiteSpace(req.Username))
+				return Results.Json(ApiResponse.Fail("username_required", "validation_error"), statusCode: 400);
 
-			// Revoke the refresh token so it can no longer be used
-			if (!string.IsNullOrEmpty(refreshToken))
-				auth.RevokeRefreshToken(refreshToken);
+			if (string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
+				return Results.Json(ApiResponse.Fail("password_min_length_6", "validation_error"), statusCode: 400);
 
-			// Clear the auth cookie (match Secure flag so the browser actually deletes it)
-			ctx.Response.Cookies.Delete("vdf_auth", new CookieOptions {
-				Secure = ctx.Request.IsHttps,
-			});
+			if (userStore.UserExists(req.Username))
+				return Results.Json(ApiResponse.Fail("username_already_exists", "conflict"), statusCode: 409);
 
-			return Results.Ok(new { logged_out = true });
+			Role role = Role.Viewer;
+			if (!string.IsNullOrWhiteSpace(req.Role))
+				role = RoleExtensions.FromClaimValue(req.Role);
+
+			userStore.CreateUser(req.Username, req.Password, role);
+			return Results.Ok(ApiResponse.Ok(new { username = req.Username, role = role.ToString() }));
 		});
 
-		// GET /api/auth/status — check auth status
-		group.MapGet("/status", (HttpContext ctx, AuthService auth) => {
-			return Results.Ok(new AuthStatusResponse {
-				Authenticated = auth.IsAuthenticated(ctx),
-				AuthEnabled = auth.AuthEnabled,
-			});
+		group.MapPut("/users/{username}/role", (UserStore userStore, string username, UpdateRoleRequest req) => {
+			if (!userStore.UserExists(username))
+				return Results.NotFound(ApiResponse.Fail("user_not_found", "not_found"));
+
+			Role role = RoleExtensions.FromClaimValue(req.Role);
+			userStore.UpdateRole(username, role);
+			return Results.Ok(ApiResponse.Ok(new { username, role = role.ToString() }));
+		});
+
+		group.MapDelete("/users/{username}", (UserStore userStore, string username) => {
+			if (!userStore.UserExists(username))
+				return Results.NotFound(ApiResponse.Fail("user_not_found", "not_found"));
+
+			if (string.Equals(username, "admin", StringComparison.OrdinalIgnoreCase))
+				return Results.Json(ApiResponse.Fail("cannot_delete_admin", "forbidden"), statusCode: 403);
+
+			userStore.DeleteUser(username);
+			return Results.Ok(ApiResponse.Ok(new { deleted = true }));
+		});
+
+		group.MapGet("/audit", (AuditService auditService, int? count) => {
+			var entries = auditService.GetRecent(count ?? 100);
+			return Results.Ok(ApiResponse.Ok(entries));
 		});
 
 		return app;
 	}
+}
+
+public sealed class CreateUserRequest {
+	public string Username { get; set; } = string.Empty;
+	public string Password { get; set; } = string.Empty;
+	public string? Role { get; set; }
+}
+
+public sealed class UpdateRoleRequest {
+	public string Role { get; set; } = string.Empty;
 }

@@ -14,6 +14,7 @@
 // */
 
 using System.Security.Cryptography;
+using VDF.Web.ApiModels;
 using VDF.Web.Services;
 
 namespace VDF.Web.Endpoints;
@@ -40,7 +41,7 @@ static class BrowseEndpoints {
 
 				// Deny browsing entirely if no scan directories are configured
 				if (allowedRoots.Count == 0) {
-					return Results.Json(new { error = "no_scan_dirs", message = "No scan directories configured. Add directories in Settings first." }, statusCode: 403);
+					return Results.Json(ApiResponse.Fail("No scan directories configured. Add directories in Settings first.", "no_scan_dirs"), statusCode: 403);
 				}
 
 				bool isAllowed = allowedRoots.Any(root =>
@@ -49,10 +50,10 @@ static class BrowseEndpoints {
 					path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
 				if (!isAllowed)
-					return Results.Json(new { error = "access_denied", message = "Path is not within configured scan directories" }, statusCode: 403);
+					return Results.Json(ApiResponse.Fail("Path is not within configured scan directories", "access_denied"), statusCode: 403);
 
 				if (!Directory.Exists(path))
-					return Results.NotFound(new { error = "directory_not_found" });
+					return Results.NotFound(ApiResponse.Fail("directory_not_found", "directory_not_found"));
 
 				var entries = new List<object>();
 
@@ -84,10 +85,10 @@ static class BrowseEndpoints {
 				}
 				catch { }
 
-				return Results.Ok(entries);
+				return Results.Ok(ApiResponse.Ok(entries));
 			}
 			catch (Exception ex) {
-				return Results.Json(new { error = ex.Message }, statusCode: 500);
+				return Results.Json(ApiResponse.Fail(ex.Message, "internal_error"), statusCode: 500);
 			}
 		}).RequireAuthorization();
 

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vdf-web.fullname" . }}
+  labels:
+    {{- include "vdf-web.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "vdf-web.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vdf-web.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: VDF_WEB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vdf-web.fullname" . }}-secrets
+                  key: web-password
+            - name: VDF_WEB_AUTH
+              value: {{ .Values.config.authEnabled | quote }}
+            {{- if .Values.config.corsOrigins }}
+            - name: VDF_CORS_ORIGINS
+              value: {{ .Values.config.corsOrigins | quote }}
+            {{- end }}
+            {{- if .Values.config.basePath }}
+            - name: VDF_BASE_PATH
+              value: {{ .Values.config.basePath | quote }}
+            {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: vdf-data
+              mountPath: /data
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: vdf-data
+          persistentVolumeClaim:
+            claimName: {{ include "vdf-web.fullname" . }}-data
+      {{- end }}

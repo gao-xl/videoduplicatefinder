@@ -1,6 +1,7 @@
 using System.Globalization;
 using VDF.Core.Utils;
 using VDF.Core.ViewModels;
+using VDF.Web.ApiModels;
 using VDF.Web.Models;
 using VDF.Web.Services;
 
@@ -21,7 +22,6 @@ static class ResultEndpoints {
 				.Where(g => g.Count() > 1)
 				.ToList();
 
-			// Filter by search term if provided
 			if (!string.IsNullOrWhiteSpace(search)) {
 				var term = search.Trim();
 				allGroups = allGroups
@@ -35,7 +35,6 @@ static class ResultEndpoints {
 			int totalFiles = allGroups.Sum(g => g.Count());
 			long totalSize = allGroups.Sum(g => g.Sum(item => Math.Max(0, item.SizeLong)));
 
-			// Potential savings: sum of all items except the largest in each group
 			long potentialSavings = allGroups.Sum(g => {
 				var items = g.ToList();
 				long maxSize = items.Max(i => Math.Max(0, i.SizeLong));
@@ -51,7 +50,7 @@ static class ResultEndpoints {
 				})
 				.ToList();
 
-			return Results.Ok(new ResultsPageResponse {
+			return Results.Ok(ApiResponse.Ok(new ResultsPageResponse {
 				Groups = pagedGroups,
 				TotalGroups = totalGroups,
 				Page = p,
@@ -59,42 +58,50 @@ static class ResultEndpoints {
 				TotalFiles = totalFiles,
 				TotalSizeBytes = totalSize,
 				PotentialSavingsBytes = potentialSavings,
-			});
+			}));
 		});
 
 		// DELETE /api/results/items — delete selected items from disk
 		group.MapDelete("/items", async (ScanService scan, [FromBody] DeleteItemsRequest req) => {
 			if (scan.FileOpRunning)
-				return Results.Json(new { error = "file_op_in_progress" }, statusCode: 409);
+				return Results.Json(ApiResponse.Fail("file_op_in_progress", "file_operation_busy"), statusCode: 409);
 			var items = FindItems(scan, req.Paths);
 			if (items.Count == 0)
-				return Results.NotFound(new { error = "no_matching_items" });
+				return Results.NotFound(ApiResponse.Fail("no_matching_items", "items_not_found"));
 			var result = await scan.DeleteItemsAsync(items, req.Permanent);
-			return Results.Ok(MapFileOpResult(result));
+			return Results.Ok(ApiResponse.Ok(MapFileOpResult(result)));
 		});
 
 		// POST /api/results/move — move selected items
 		group.MapPost("/move", async (ScanService scan, MoveItemsRequest req) => {
 			if (scan.FileOpRunning)
-				return Results.Json(new { error = "file_op_in_progress" }, statusCode: 409);
+				return Results.Json(ApiResponse.Fail("file_op_in_progress", "file_operation_busy"), statusCode: 409);
 			if (string.IsNullOrWhiteSpace(req.Destination))
-				return Results.Json(new { error = "destination_required" }, statusCode: 400);
+				return Results.Json(ApiResponse.Fail("destination_required", "validation_error"), statusCode: 400);
 			var items = FindItems(scan, req.Paths);
 			if (items.Count == 0)
-				return Results.NotFound(new { error = "no_matching_items" });
+				return Results.NotFound(ApiResponse.Fail("no_matching_items", "items_not_found"));
 			var result = await scan.MoveItemsAsync(items, req.Destination);
-			return Results.Ok(MapFileOpResult(result));
+			return Results.Ok(ApiResponse.Ok(MapFileOpResult(result)));
 		});
 
 		// POST /api/results/links — replace with links
 		group.MapPost("/links", async (ScanService scan, CreateLinksRequest req) => {
 			if (scan.FileOpRunning)
-				return Results.Json(new { error = "file_op_in_progress" }, statusCode: 409);
+				return Results.Json(ApiResponse.Fail("file_op_in_progress", "file_operation_busy"), statusCode: 409);
 			var items = FindItems(scan, req.Paths);
 			if (items.Count == 0)
-				return Results.NotFound(new { error = "no_matching_items" });
+				return Results.NotFound(ApiResponse.Fail("no_matching_items", "items_not_found"));
 			var result = await scan.CreateLinksAsync(items, req.Hardlink);
-			return Results.Ok(MapFileOpResult(result));
+			return Results.Ok(ApiResponse.Ok(MapFileOpResult(result)));
+		});
+
+		group.MapDelete("/remove", (ScanService scan, [FromBody] RemoveItemsRequest req) => {
+			var items = FindItems(scan, req.Paths);
+			if (items.Count == 0)
+				return Results.NotFound(ApiResponse.Fail("no_matching_items", "items_not_found"));
+			scan.RemoveFromResults(items);
+			return Results.Ok(ApiResponse.Ok(new { removed = items.Count }));
 		});
 
 		// DELETE /api/results/remove — remove items from results list (no disk change)
@@ -110,6 +117,51 @@ static class ResultEndpoints {
 		group.MapGet("/export/csv", (ScanService scan) => {
 			var bytes = VDF.Core.Utils.ResultsCsvExporter.ExportToUtf8Bom(scan.Duplicates, includeCheckedColumn: false);
 			return Results.File(bytes, "text/csv", "vdf-results.csv");
+		});
+
+		group.MapPost("/autoselect", (ScanService scan, AutoSelectRequest req) => {
+			var allGroups = scan.Duplicates
+				.GroupBy(d => d.GroupId)
+				.Where(g => g.Count() > 1)
+				.ToList();
+
+			var selected = new List<DuplicateItem>();
+			foreach (var g in allGroups) {
+				var items = g.ToList();
+				DuplicateItem? pick = req.Mode switch {
+					"lowestQuality" => items.OrderBy(i => i.FrameSizeInt)
+						.ThenBy(i => i.BitRateKbs).FirstOrDefault(),
+					"smallestFile" => items.OrderBy(i => i.SizeLong).FirstOrDefault(),
+					"oldest" => items.OrderBy(i => i.DateCreated).FirstOrDefault(),
+					"newest" => items.OrderByDescending(i => i.DateCreated).FirstOrDefault(),
+					"hundredPercentEqual" => items.FirstOrDefault(i => Math.Abs(i.Similarity - 100f) < 0.01f),
+					_ => null,
+				};
+				if (pick != null)
+					selected.Add(pick);
+			}
+
+			return Results.Ok(ApiResponse.Ok(new {
+				selectedPaths = selected.Select(i => i.Path).ToList(),
+				count = selected.Count,
+			}));
+		});
+
+		group.MapPost("/keepbest", (ScanService scan, KeepBestRequest req) => {
+			var groupItems = scan.Duplicates
+				.Where(d => d.GroupId == req.GroupId)
+				.ToList();
+
+			if (groupItems.Count == 0)
+				return Results.NotFound(ApiResponse.Fail("group_not_found", "group_not_found"));
+
+			var keeper = VDF.Core.Utils.QualityCriteria.PickKeeper(groupItems);
+			var toSelect = groupItems.Where(d => d.Path != keeper.Path).ToList();
+			return Results.Ok(ApiResponse.Ok(new {
+				keeperPath = keeper.Path,
+				selectedPaths = toSelect.Select(i => i.Path).ToList(),
+				count = toSelect.Count,
+			}));
 		});
 
 		// POST /api/results/autoselect — auto-select items based on mode

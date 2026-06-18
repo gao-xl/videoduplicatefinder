@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vdf-web
+  labels:
+    app: vdf-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vdf-web
+  template:
+    metadata:
+      labels:
+        app: vdf-web
+    spec:
+      containers:
+        - name: vdf-web
+          image: ghcr.io/0x90d/vdf-web:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: VDF_WEB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vdf-secrets
+                  key: web-password
+            - name: VDF_WEB_AUTH
+              value: "true"
+            - name: VDF_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: vdf-config
+                  key: cors-origins
+          volumeMounts:
+            - name: vdf-data
+              mountPath: /data
+            - name: vdf-state
+              mountPath: /state
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: vdf-data
+          persistentVolumeClaim:
+            claimName: vdf-data-pvc
+        - name: vdf-state
+          emptyDir: {}

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: vdf-web
+description: VideoDuplicateFinder Web UI
+type: application
+version: 0.1.0
+appVersion: "5.0.0"
+maintainers:
+  - name: 0x90d
+keywords:
+  - video
+  - duplicate
+  - finder
+home: https://github.com/0x90d/videoduplicatefinder
+sources:
+  - https://github.com/0x90d/videoduplicatefinder
